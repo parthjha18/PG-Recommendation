@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PG Finder — Bangalore North</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet"/>
+  <style>
+    /* ── TOKENS ── */
+    :root {
+      --bg:        #0d0f14;
+      --surface:   #161922;
+      --surface2:  #1e2230;
+      --border:    rgba(255,255,255,0.07);
+      --accent:    #ff6b35;
+      --accent2:   #ffd166;
+      --teal:      #06d6a0;
+      --text:      #f0f2f7;
+      --muted:     #8891aa;
+      --card-glow: rgba(255,107,53,0.10);
+      --radius:    16px;
+      --font-head: 'Syne', sans-serif;
+      --font-body: 'DM Sans', sans-serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--font-body);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── NOISE OVERLAY ── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 0; opacity: 0.4;
+    }
+
+    /* ── HERO GLOW BLOBS ── */
+    .blob {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(120px);
+      pointer-events: none;
+      z-index: 0;
+      animation: drift 12s ease-in-out infinite alternate;
+    }
+    .blob-1 { width: 500px; height: 500px; background: rgba(255,107,53,0.13); top: -150px; left: -100px; }
+    .blob-2 { width: 400px; height: 400px; background: rgba(6,214,160,0.09); bottom: -100px; right: -80px; animation-delay: -6s; }
+    .blob-3 { width: 300px; height: 300px; background: rgba(255,209,102,0.07); top: 40%; left: 50%; animation-delay: -3s; }
+
+    @keyframes drift {
+      from { transform: translate(0,0) scale(1); }
+      to   { transform: translate(30px, 40px) scale(1.1); }
+    }
+
+    /* ── LAYOUT ── */
+    .page-wrap {
+      position: relative; z-index: 1;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 24px 80px;
+    }
+
+    /* ── HEADER ── */
+    header {
+      padding: 48px 0 40px;
+      text-align: center;
+      animation: fadeUp .6s ease both;
+    }
+
+    .logo-pill {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 6px 16px;
+      font-size: 12px; font-weight: 500; letter-spacing: .08em;
+      color: var(--accent); text-transform: uppercase;
+      margin-bottom: 20px;
+    }
+    .logo-pill span { font-size: 16px; }
+
+    h1 {
+      font-family: var(--font-head);
+      font-size: clamp(2rem, 6vw, 3.8rem);
+      font-weight: 800;
+      line-height: 1.1;
+      letter-spacing: -0.03em;
+    }
+    h1 em {
+      font-style: normal;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 1rem;
+      margin-top: 12px;
+      font-weight: 300;
+    }
+
+    /* ── FORM CARD ── */
+    .form-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 36px 40px;
+      margin-top: 40px;
+      animation: fadeUp .7s .1s ease both;
+      position: relative;
+      overflow: hidden;
+    }
+    .form-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    @media (max-width: 640px) {
+      .form-grid { grid-template-columns: 1fr; }
+      .form-card { padding: 24px 20px; }
+    }
+
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field.full { grid-column: 1 / -1; }
+
+    label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    input[type="number"],
+    input[type="text"],
+    select {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 15px;
+      outline: none;
+      transition: border-color .2s, box-shadow .2s;
+      width: 100%;
+      appearance: none;
+    }
+
+    input:focus, select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(255,107,53,0.15);
+    }
+
+    select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%238891aa' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14L2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      padding-right: 36px;
+    }
+
+    select option { background: var(--surface2); }
+
+    /* ── TOGGLE CHIPS ── */
+    .chip-group {
+      display: flex; flex-wrap: wrap; gap: 10px;
+      grid-column: 1 / -1;
+    }
+
+    .chip {
+      position: relative;
+    }
+    .chip input[type="checkbox"] {
+      position: absolute; opacity: 0; pointer-events: none;
+    }
+    .chip label {
+      display: flex; align-items: center; gap: 6px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 8px 18px;
+      cursor: pointer;
+      font-size: 13px; font-weight: 500;
+      color: var(--muted);
+      text-transform: none; letter-spacing: 0;
+      transition: all .2s;
+      user-select: none;
+    }
+    .chip input:checked + label {
+      background: rgba(255,107,53,0.15);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .chip label:hover { border-color: rgba(255,107,53,0.4); color: var(--text); }
+
+    /* Budget range */
+    .budget-row { display: flex; align-items: center; gap: 12px; }
+    .budget-display {
+      font-family: var(--font-head);
+      font-size: 1.2rem; font-weight: 700;
+      color: var(--accent2);
+      white-space: nowrap;
+      min-width: 90px;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--surface2);
+      flex: 1;
+      cursor: pointer;
+      border: none;
+      box-shadow: none;
+      padding: 0;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px; height: 18px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 12px rgba(255,107,53,0.6);
+      cursor: pointer;
+    }
+
+    /* ── SECTION DIVIDER ── */
+    .section-label {
+      font-family: var(--font-head);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .15em;
+      text-transform: uppercase;
+      color: var(--accent);
+      grid-column: 1 / -1;
+      margin-top: 8px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── SUBMIT BUTTON ── */
+    .submit-btn {
+      grid-column: 1 / -1;
+      margin-top: 8px;
+      background: linear-gradient(135deg, var(--accent), #ff9d6b);
+      border: none;
+      border-radius: 12px;
+      padding: 15px 32px;
+      color: #fff;
+      font-family: var(--font-head);
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: .04em;
+      cursor: pointer;
+      transition: transform .15s, box-shadow .15s;
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+    }
+    .submit-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 32px rgba(255,107,53,0.35);
+    }
+    .submit-btn:active { transform: translateY(0); }
+
+    /* ── RESULTS ── */
+    .results-header {
+      font-family: var(--font-head);
+      font-size: 1.5rem; font-weight: 700;
+      margin: 56px 0 24px;
+      display: flex; align-items: center; gap: 12px;
+      animation: fadeUp .5s ease both;
+    }
+    .results-count {
+      background: var(--accent);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      border-radius: 999px;
+      padding: 2px 10px;
+    }
+
+    .results-grid {
+      display: flex; flex-direction: column; gap: 20px;
+    }
+
+    /* ── RESULT CARD ── */
+    .pg-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 28px 32px;
+      position: relative;
+      overflow: hidden;
+      animation: fadeUp .5s ease both;
+      transition: border-color .25s, box-shadow .25s;
+    }
+    .pg-card:hover {
+      border-color: rgba(255,107,53,0.35);
+      box-shadow: 0 20px 48px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,107,53,0.08);
+    }
+
+    .pg-card.best-match {
+      border-color: rgba(6,214,160,0.4);
+      background: linear-gradient(135deg, #161922, #162220);
+    }
+    .pg-card.best-match::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, var(--teal), #00b4d8);
+    }
+
+    .card-top {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 16px; flex-wrap: wrap;
+    }
+
+    .best-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(6,214,160,0.15);
+      border: 1px solid rgba(6,214,160,0.4);
+      border-radius: 999px;
+      padding: 4px 14px;
+      font-size: 11px; font-weight: 700;
+      letter-spacing: .08em; text-transform: uppercase;
+      color: var(--teal);
+      margin-bottom: 8px;
+    }
+
+    .card-rank {
+      font-family: var(--font-head);
+      font-size: 3rem; font-weight: 800;
+      color: var(--border);
+      line-height: 1;
+      position: absolute; right: 28px; top: 24px;
+      pointer-events: none;
+    }
+    .pg-card.best-match .card-rank { color: rgba(6,214,160,0.1); }
+
+    .pg-name {
+      font-family: var(--font-head);
+      font-size: 1.2rem; font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .pg-location {
+      display: flex; align-items: center; gap: 5px;
+      font-size: 13px; color: var(--muted);
+    }
+
+    /* Stars */
+    .stars-row {
+      display: flex; align-items: center; gap: 8px;
+      margin-top: 6px;
+    }
+    .stars {
+      display: flex; gap: 2px;
+    }
+    .star { font-size: 14px; line-height: 1; }
+    .star.on { color: var(--accent2); }
+    .star.off { color: var(--surface2); }
+    .rating-num {
+      font-family: var(--font-head);
+      font-size: 13px; font-weight: 700;
+      color: var(--accent2);
+    }
+
+    /* Rent pill */
+    .rent-pill {
+      background: rgba(255,209,102,0.12);
+      border: 1px solid rgba(255,209,102,0.25);
+      border-radius: 10px;
+      padding: 8px 16px;
+      text-align: center;
+    }
+    .rent-pill .amount {
+      font-family: var(--font-head);
+      font-size: 1.25rem; font-weight: 800;
+      color: var(--accent2);
+    }
+    .rent-pill .per {
+      font-size: 10px; color: var(--muted); display: block;
+      margin-top: 2px;
+    }
+
+    /* Card details grid */
+    .card-details {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
+      margin-top: 20px;
+    }
+
+    .detail-item {
+      background: var(--surface2);
+      border-radius: 10px;
+      padding: 12px 14px;
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .detail-item .d-label {
+      font-size: 10px; font-weight: 600;
+      letter-spacing: .1em; text-transform: uppercase;
+      color: var(--muted);
+    }
+    .detail-item .d-val {
+      font-size: 14px; font-weight: 500;
+      color: var(--text);
+    }
+
+    /* Amenity tags */
+    .amenity-row {
+      display: flex; flex-wrap: wrap; gap: 8px;
+      margin-top: 16px;
+    }
+    .amenity-tag {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 12px; color: var(--muted);
+      display: flex; align-items: center; gap: 4px;
+    }
+    .amenity-tag.active {
+      background: rgba(6,214,160,0.08);
+      border-color: rgba(6,214,160,0.3);
+      color: var(--teal);
+    }
+
+    /* Why matched */
+    .why-box {
+      margin-top: 16px;
+      background: rgba(255,107,53,0.06);
+      border: 1px solid rgba(255,107,53,0.15);
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+    .why-box strong { color: var(--text); font-weight: 500; }
+
+    /* Extra badge */
+    .pg-badge {
+      display: inline-block;
+      background: rgba(255,107,53,0.12);
+      border: 1px solid rgba(255,107,53,0.3);
+      border-radius: 6px;
+      padding: 3px 10px;
+      font-size: 11px; font-weight: 600;
+      color: var(--accent);
+      margin-left: 8px;
+    }
+
+    /* Score bar */
+    .score-bar-wrap {
+      margin-top: 16px;
+    }
+    .score-bar-label {
+      display: flex; justify-content: space-between;
+      font-size: 11px; color: var(--muted); margin-bottom: 6px;
+    }
+    .score-bar-track {
+      height: 5px;
+      background: var(--surface2);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .score-bar-fill {
+      height: 100%;
+      border-radius: 99px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      transition: width 1s ease;
+    }
+
+    /* ── NO RESULTS ── */
+    .empty-state {
+      text-align: center;
+      padding: 64px 24px;
+      animation: fadeUp .5s ease both;
+    }
+    .empty-state .icon { font-size: 3rem; margin-bottom: 16px; }
+    .empty-state h3 { font-family: var(--font-head); font-size: 1.3rem; margin-bottom: 8px; }
+    .empty-state p { color: var(--muted); font-size: 14px; }
+
+    /* ── STATS BAR (if results) ── */
+    .stats-bar {
+      display: flex; gap: 16px; flex-wrap: wrap;
+      margin-bottom: 24px;
+      animation: fadeUp .5s .05s ease both;
+    }
+    .stat-chip {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 18px;
+      display: flex; flex-direction: column; gap: 2px;
+    }
+    .stat-chip .s-val {
+      font-family: var(--font-head);
+      font-size: 1.1rem; font-weight: 700;
+      color: var(--text);
+    }
+    .stat-chip .s-lab { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+
+    /* ── USER SUMMARY ── */
+    .user-summary {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px 22px;
+      margin-bottom: 28px;
+      font-size: 13px;
+      color: var(--muted);
+      display: flex; flex-wrap: wrap; gap: 16px; align-items: center;
+      animation: fadeUp .5s .02s ease both;
+    }
+    .user-summary strong { color: var(--text); }
+
+    /* ── ANIMATIONS ── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      text-align: center;
+      padding: 40px 0 20px;
+      font-size: 12px;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+      margin-top: 60px;
+    }
+
+    /* ── RATING WIDGET ── */
+    .rating-widget {
+      margin-top: 18px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 18px;
+    }
+    .rating-widget-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .rating-widget-title {
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .1em; color: var(--muted);
+    }
+    .rating-avg-display {
+      display: flex; align-items: center; gap: 6px;
+    }
+    .rating-avg-num {
+      font-family: var(--font-head); font-size: 1.1rem; font-weight: 700;
+      color: var(--accent2);
+    }
+    .rating-count-label {
+      font-size: 11px; color: var(--muted);
+    }
+    .star-picker {
+      display: flex; gap: 6px; align-items: center;
+    }
+    .star-picker .sp-star {
+      font-size: 22px; cursor: pointer; line-height: 1;
+      color: var(--surface);
+      transition: color .15s, transform .15s;
+    }
+    .star-picker .sp-star:hover,
+    .star-picker .sp-star.hovered,
+    .star-picker .sp-star.selected { color: var(--accent2); }
+    .star-picker .sp-star:hover { transform: scale(1.2); }
+    .submit-rating-btn {
+      margin-left: 10px;
+      background: linear-gradient(135deg, var(--accent), #ff9d6b);
+      border: none; border-radius: 8px;
+      padding: 6px 16px;
+      color: #fff; font-family: var(--font-head);
+      font-size: 12px; font-weight: 700;
+      cursor: pointer;
+      transition: transform .15s, box-shadow .15s;
+      white-space: nowrap;
+    }
+    .submit-rating-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px rgba(255,107,53,.35);
+    }
+    .rating-toast {
+      font-size: 12px; margin-top: 8px; min-height: 16px;
+      color: var(--teal); transition: opacity .3s;
+    }
+    .rating-toast.error { color: #ff6b6b; }
+  </style>
+</head>
+<body>
+
+<!-- Atmosphere -->
+<div class="blob blob-1"></div>
+<div class="blob blob-2"></div>
+<div class="blob blob-3"></div>
+
+<div class="page-wrap">
+
+  <!-- ── HEADER ── -->
+  <header>
+    <div class="logo-pill"><span>📍</span> Bangalore North</div>
+    <h1>Find Your Perfect<br><em>PG Accommodation</em></h1>
+    <p class="subtitle">Smart recommendations based on your budget, lifestyle & priorities.</p>
+  </header>
+
+  <!-- ── FORM ── -->
+  <div class="form-card">
+    <form method="POST" id="pg-form">
+
+      <div class="form-grid">
+
+        <!-- SECTION: Budget & Location -->
+        <div class="section-label">Budget & Location</div>
+
+        <div class="field full">
+          <label>Monthly Budget</label>
+          <div class="budget-row">
+            <input type="range" id="budgetSlider" name="budget_slider" min="1000" max="20000" step="500" value="15000" oninput="syncBudget(this.value)"/>
+            <span class="budget-display" id="budgetDisplay">₹15,000</span>
+          </div>
+          <!-- Hidden actual input for form submission -->
+          <input type="hidden" name="budget" id="budgetHidden" value="15000"/>
+        </div>
+
+        <div class="field">
+          <label>Preferred Location</label>
+          <input type="text" name="location" placeholder="e.g. Hebbal, Yelahanka…" list="location-list"/>
+          <datalist id="location-list">
+            <option value="Hebbal"/>
+            <option value="Yelahanka"/>
+            <option value="Kalyan Nagar"/>
+            <option value="Hennur"/>
+            <option value="Thanisandra"/>
+            <option value="Kogilu"/>
+            <option value="Jakkur"/>
+            <option value="RT Nagar"/>
+          </datalist>
+        </div>
+
+        <div class="field">
+          <label>Gender Preference</label>
+          <select name="gender">
+            <option value="0">👨 Boys Only</option>
+            <option value="1">👩 Girls Only</option>
+            <option value="2" selected>🤝 Co-ed / Any</option>
+          </select>
+        </div>
+
+        <!-- SECTION: Meals -->
+        <div class="section-label">Meals</div>
+
+        <div class="field">
+          <label>Meals Per Day</label>
+          <select name="meals">
+            <option value="2" selected>2 Meals/day</option>
+            <option value="3">3 Meals/day</option>
+          </select>
+        </div>
+
+        <!-- SECTION: Amenities -->
+        <div class="section-label">Required Amenities</div>
+
+        <div class="chip-group">
+          <div class="chip">
+            <input type="checkbox" id="wifi" name="wifi" value="1"/>
+            <label for="wifi">📶 WiFi</label>
+          </div>
+          <div class="chip">
+            <input type="checkbox" id="ac" name="ac" value="1"/>
+            <label for="ac">❄️ AC</label>
+          </div>
+          <div class="chip">
+            <input type="checkbox" id="laundry" name="laundry" value="1"/>
+            <label for="laundry">🫧 Laundry</label>
+          </div>
+          <div class="chip">
+            <input type="checkbox" id="food" name="food" value="1"/>
+            <label for="food">🍱 Weekend Food</label>
+          </div>
+        </div>
+
+        <!-- SUBMIT -->
+        <button type="submit" class="submit-btn">
+          <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          Find My Best PGs
+        </button>
+
+      </div>
+    </form>
+  </div>
+
+  <!-- ── RESULTS ── -->
+  {% if results %}
+
+    <!-- User summary -->
+    <div class="user-summary">
+      🔍 Showing results for:
+      <span>💰 <strong>₹{{ user.budget | int | format_inr }}</strong></span>
+      {% if user.location %}<span>📍 <strong>{{ user.location | title }}</strong></span>{% endif %}
+      <span>👤 <strong>{{ ['Boys', 'Girls', 'Co-ed'][user.gender] }}</strong></span>
+      <span>🍽 <strong>{{ user.meals }} meals/day</strong></span>
+    </div>
+
+    <!-- Stats bar -->
+    {% set avg_rent = (results | map(attribute='Original_Rent') | sum) / results|length %}
+    {% set best_rating = results | map(attribute='match_rating') | max %}
+    <div class="stats-bar">
+      <div class="stat-chip">
+        <span class="s-val">{{ results | length }}</span>
+        <span class="s-lab">Matches Found</span>
+      </div>
+      <div class="stat-chip">
+        <span class="s-val">₹{{ avg_rent | int | format_inr }}</span>
+        <span class="s-lab">Avg Rent</span>
+      </div>
+      <div class="stat-chip">
+        <span class="s-val">{{ best_rating }}/5</span>
+        <span class="s-lab">Best Rating</span>
+      </div>
+    </div>
+
+    <div class="results-header">
+      <span>Your Recommendations</span>
+      <span class="results-count">{{ results|length }} found</span>
+    </div>
+
+    <div class="results-grid">
+      {% for pg in results %}
+      <div class="pg-card {% if pg.Rank == 1 %}best-match{% endif %}" style="animation-delay: {{ loop.index0 * 0.08 }}s">
+
+        <span class="card-rank">#{{ pg.Rank }}</span>
+
+        <div class="card-top">
+          <div>
+            {% if pg.Rank == 1 %}
+            <div class="best-badge">🔥 Best Match</div>
+            {% endif %}
+            <div class="pg-name">
+              PG {{ pg.get('PG_ID', loop.index) }}
+              {% if pg.Badge %}<span class="pg-badge">{{ pg.Badge }}</span>{% endif %}
+            </div>
+            <div class="pg-location">
+              <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+              {{ pg.Location | title }}
+            </div>
+            <div class="stars-row">
+              <div class="stars">
+                {% for i in range(1,6) %}
+                <span class="star {% if i <= pg.match_rating | int %}on{% else %}off{% endif %}">★</span>
+                {% endfor %}
+              </div>
+              <span class="rating-num">{{ pg.match_rating }}/5</span>
+            </div>
+          </div>
+
+          <div class="rent-pill">
+            <div class="amount">₹{{ pg.Original_Rent | int | format_inr }}</div>
+            <span class="per">per month</span>
+          </div>
+        </div>
+
+        <!-- Details grid -->
+        <div class="card-details">
+          <div class="detail-item">
+            <span class="d-label">🛏 Sharing</span>
+            <span class="d-val">{{ pg.get('Sharing', '—') }}-person room</span>
+          </div>
+          <div class="detail-item">
+            <span class="d-label">🍽 Meals/day</span>
+            <span class="d-val">{{ pg.get('Meals_Per_Day', 2) | int + 2 }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="d-label">🌙 Curfew</span>
+            <span class="d-val">{{ {0:'9 PM', 1:'10 PM', 2:'11 PM', 3:'None'}.get(pg.get('Curfew_Time', 2), '—') }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="d-label">📅 Available Soon</span>
+            <span class="d-val">{{ '✅ Yes' if pg.get('available_soon') else '🕐 Not yet' }}</span>
+          </div>
+        </div>
+
+        <!-- Amenity tags -->
+        <div class="amenity-row">
+          <span class="amenity-tag {% if pg.get('WiFi') == 1 %}active{% endif %}">📶 WiFi</span>
+          <span class="amenity-tag {% if pg.get('AC') == 1 %}active{% endif %}">❄️ AC</span>
+          <span class="amenity-tag {% if pg.get('Laundry') == 1 %}active{% endif %}">🫧 Laundry</span>
+          <span class="amenity-tag {% if pg.get('Parking') == 1 %}active{% endif %}">🚗 Parking</span>
+          <span class="amenity-tag {% if pg.get('Security') == 1 %}active{% endif %}">🔒 Security</span>
+          <span class="amenity-tag {% if pg.get('Power_Backup') == 1 %}active{% endif %}">⚡ Power Backup</span>
+        </div>
+
+        <!-- Match score bar -->
+        {% set score_pct = ((pg.match_rating / 5) * 100) | int %}
+        <div class="score-bar-wrap">
+          <div class="score-bar-label">
+            <span>Match Score</span>
+            <span>{{ score_pct }}%</span>
+          </div>
+          <div class="score-bar-track">
+            <div class="score-bar-fill" style="width: {{ score_pct }}%"></div>
+          </div>
+          <div style="font-size: 11px; color: var(--muted); margin-top: 8px; display: flex; justify-content: space-between;">
+             <span>⭐ {{ "%.1f"|format(pg.get('average_rating', 3.5)) }} ({{ pg.get('rating_count', 0) }} reviews)</span>
+             <span>Confidence: {{ "%.2f"|format(pg.get('Confidence_Score', 0.0)) }}</span>
+          </div>
+        </div>
+
+        <!-- Rating widget -->
+        <div class="rating-widget" id="rw-{{ pg.get('PG_ID') }}">
+          <div class="rating-widget-header">
+            <span class="rating-widget-title">Rate This PG</span>
+            <div class="rating-avg-display">
+              <span class="rating-avg-num" id="ra-{{ pg.get('PG_ID') }}">{{ "%.1f"|format(pg.get('average_rating', 3.5)) }}</span>
+              <span class="rating-count-label" id="rc-{{ pg.get('PG_ID') }}">/ 5 &nbsp;·&nbsp; {{ pg.get('rating_count', 0) }} ratings</span>
+            </div>
+          </div>
+          <div class="star-picker" id="sp-{{ pg.get('PG_ID') }}" data-pgid="{{ pg.get('PG_ID') }}">
+            <span class="sp-star" data-val="1">★</span>
+            <span class="sp-star" data-val="2">★</span>
+            <span class="sp-star" data-val="3">★</span>
+            <span class="sp-star" data-val="4">★</span>
+            <span class="sp-star" data-val="5">★</span>
+            <button class="submit-rating-btn" data-pgid="{{ pg.PG_ID }}" onclick="submitRating(this.dataset.pgid)">Submit</button>
+          </div>
+          <div class="rating-toast" id="rt-{{ pg.get('PG_ID') }}"></div>
+        </div>
+
+        <!-- Why matched -->
+        {% if pg.get('Why_Matched') %}
+        <div class="why-box">
+          <strong>💡 Why recommended:</strong> {{ pg.Why_Matched }}
+        </div>
+        {% endif %}
+
+      </div>
+      {% endfor %}
+    </div>
+
+  {% elif request.method == 'POST' %}
+    <div class="empty-state">
+      <div class="icon">🏚️</div>
+      <h3>No PGs Found</h3>
+      <p>
+        {% if error_message %}
+          {{ error_message }}
+        {% else %}
+          No PGs matched your filters. Try increasing your budget<br>or removing some amenity requirements.
+        {% endif %}
+      </p>
+    </div>
+  {% endif %}
+
+  <footer>
+    PG Finder · Bangalore North · Built with ❤️ for smarter house-hunting
+  </footer>
+
+</div>
+
+<script>
+  /* ── Budget slider ── */
+  function syncBudget(val) {
+    const formatted = '\u20b9' + parseInt(val).toLocaleString('en-IN');
+    document.getElementById('budgetDisplay').textContent = formatted;
+    document.getElementById('budgetHidden').value = val;
+  }
+
+  /* ── Animate score bars on load ── */
+  window.addEventListener('load', () => {
+    document.querySelectorAll('.score-bar-fill').forEach(bar => {
+      const target = bar.style.width;
+      bar.style.width = '0';
+      setTimeout(() => bar.style.width = target, 200);
+    });
+  });
+
+  /* ── Star picker hover / select ── */
+  document.querySelectorAll('.star-picker').forEach(picker => {
+    const stars = picker.querySelectorAll('.sp-star');
+    picker._selected = 0;
+
+    stars.forEach(star => {
+      star.addEventListener('mouseenter', () => {
+        const val = +star.dataset.val;
+        stars.forEach(s => s.classList.toggle('hovered', +s.dataset.val <= val));
+      });
+      star.addEventListener('mouseleave', () => {
+        stars.forEach(s => s.classList.remove('hovered'));
+      });
+      star.addEventListener('click', () => {
+        picker._selected = +star.dataset.val;
+        stars.forEach(s => s.classList.toggle('selected', +s.dataset.val <= picker._selected));
+      });
+    });
+  });
+
+  /* ── Submit rating to /rate-pg ── */
+  async function submitRating(pgId) {
+    const picker = document.getElementById('sp-' + pgId);
+    const rating = picker._selected;
+    const toast  = document.getElementById('rt-' + pgId);
+
+    if (!rating) {
+      toast.textContent = 'Please select a star rating first!';
+      toast.className = 'rating-toast error';
+      return;
+    }
+
+    try {
+      const res  = await fetch('/rate-pg', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pg_id: pgId, rating: rating }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        /* update live average + count on the card */
+        document.getElementById('ra-' + pgId).textContent = data.average_rating.toFixed(1);
+        document.getElementById('rc-' + pgId).textContent =
+          '/ 5 \u00b7 ' + data.rating_count + ' rating' + (data.rating_count === 1 ? '' : 's');
+
+        toast.textContent = '\u2713 Thanks! Your rating has been saved.';
+        toast.className = 'rating-toast';
+
+        /* reset stars */
+        picker._selected = 0;
+        picker.querySelectorAll('.sp-star').forEach(s => s.classList.remove('selected', 'hovered'));
+      } else {
+        toast.textContent = data.error || 'Something went wrong.';
+        toast.className = 'rating-toast error';
+      }
+    } catch (err) {
+      toast.textContent = 'Network error. Please try again.';
+      toast.className = 'rating-toast error';
+    }
+  }
+</script>
+
+</body>
+</html>

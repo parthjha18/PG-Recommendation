@@ -1,0 +1,11 @@
+USER INPUT
+Generated On,Budget (₹),Preferred Location,WiFi Required,AC Required,Laundry Required,Food Required,Meals/Day,Gender
+2026-04-24 20:59,1000.0,,Yes,Yes,Yes,Yes,2,Girls
+
+RECOMMENDATIONS
+Rank,Location,Rent (₹/month),Sharing Type,Meals per Day,Rating,Badge,Why Recommended
+1,Vidyaranyapura,7562,Double,2,5.0 / 5,🟢 Budget Pick,✅ WiFi | 🫧 Laundry | 🍽️ Weekend food | 🌙 No curfew
+2,Hebbal,7903,Triple,2,4.9 / 5,🟢 Budget Pick,✅ WiFi | 🫧 Laundry | 🍽️ Weekend food | 🌙 No curfew
+3,Bagalur,5950,Triple,2,4.7 / 5,🟢 Budget Pick,✅ WiFi | 🫧 Laundry | 🍽️ Weekend food
+4,Hennur,10316,Double,3,4.6 / 5,,✅ WiFi | ❄️ AC included | 🫧 Laundry | 🍽️ Weekend food | 🌙 No curfew
+5,Nagawara,9575,Double,3,4.5 / 5,⭐ Premium,✅ WiFi | ❄️ AC included | 🫧 Laundry | 🍽️ Weekend food | ⭐ High amenity density | 🌙 No curfew
