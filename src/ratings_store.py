@@ -1,14 +1,19 @@
 """
 src/ratings_store.py
 ─────────────────────
-Handles persistent user ratings stored in data/ratings.csv.
+Handles persistent user ratings AND text reviews stored in data/.
 
 Provides:
-  - add_rating(pg_id, rating)       → append to CSV
-  - get_stats(pg_id)                → {average_rating, rating_count}
-  - get_all_stats()                 → dict keyed by pg_id
-  - compute_confidence(...)         → consistency × (avg / 5)
-  - compute_trust(...)              → log(1 + count) × (avg / 5)
+  - add_rating(pg_id, rating)           → append to ratings.csv
+  - get_stats(pg_id)                    → {average_rating, rating_count}
+  - get_all_stats()                     → dict keyed by pg_id
+  - compute_confidence(...)             → consistency × (avg / 5)
+  - compute_trust(...)                  → log(1 + count) × (avg / 5)
+
+  Text reviews:
+  - add_review(pg_id, text)             → analyze sentiment, append to reviews.csv
+  - get_review_stats(pg_id)             → {avg_sentiment, review_count, reviews: [...]}
+  - get_all_review_stats()              → dict keyed by pg_id
 """
 
 import os
@@ -16,21 +21,24 @@ import math
 import threading
 import pandas as pd
 
-# ── File path ─────────────────────────────────────────────────
-_BASE  = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CSV_PATH = os.path.join(_BASE, "data", "ratings.csv")
+from src.sentiment_analyzer import analyze as _analyze_sentiment, sentiment_label, star_equivalent
 
-# Thread-safe write lock
+# ── File paths ─────────────────────────────────────────────────────────────
+_BASE     = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+CSV_PATH  = os.path.join(_BASE, "data", "ratings.csv")
+REV_PATH  = os.path.join(_BASE, "data", "reviews.csv")
+
+# Thread-safe write lock (shared across both files)
 _lock = threading.Lock()
 
-# ── Defaults when a PG has zero user ratings ──────────────────
+# ── Defaults when a PG has zero user ratings ──────────────────────────────
 _DEFAULT_AVG   = 3.5   # neutral starting average
 _DEFAULT_COUNT = 0
 
 
-# ─────────────────────────────────────────────────────────────
-# INIT: ensure file exists
-# ─────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────
+# INIT: ensure files exist
+# ─────────────────────────────────────────────────────────────────────────
 
 def _ensure_csv() -> None:
     """Create ratings.csv with headers if it doesn't exist."""
@@ -39,13 +47,22 @@ def _ensure_csv() -> None:
         pd.DataFrame(columns=["pg_id", "rating"]).to_csv(CSV_PATH, index=False)
 
 
-# ─────────────────────────────────────────────────────────────
-# WRITE
-# ─────────────────────────────────────────────────────────────
+def _ensure_reviews_csv() -> None:
+    """Create reviews.csv with headers if it doesn't exist."""
+    if not os.path.exists(REV_PATH):
+        os.makedirs(os.path.dirname(REV_PATH), exist_ok=True)
+        pd.DataFrame(columns=["pg_id", "review_text", "sentiment_score"]).to_csv(
+            REV_PATH, index=False
+        )
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# STAR RATINGS — WRITE
+# ─────────────────────────────────────────────────────────────────────────
 
 def add_rating(pg_id: int, rating: int) -> dict:
     """
-    Append a new rating to ratings.csv.
+    Append a new star rating to ratings.csv.
 
     Args:
         pg_id:  Integer PG identifier (matches PG_ID column in dataset)
@@ -70,9 +87,9 @@ def add_rating(pg_id: int, rating: int) -> dict:
     return get_stats(pg_id)
 
 
-# ─────────────────────────────────────────────────────────────
-# READ / AGGREGATE
-# ─────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────
+# STAR RATINGS — READ / AGGREGATE
+# ─────────────────────────────────────────────────────────────────────────
 
 def _load() -> pd.DataFrame:
     """Load the ratings CSV, returning an empty DataFrame if missing."""
@@ -129,9 +146,138 @@ def get_all_stats() -> dict:
     return result
 
 
-# ─────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────
+# TEXT REVIEWS — WRITE
+# ─────────────────────────────────────────────────────────────────────────
+
+def add_review(pg_id: int, review_text: str) -> dict:
+    """
+    Analyze sentiment of a text review and persist it to reviews.csv.
+
+    Args:
+        pg_id:       Integer PG identifier
+        review_text: Free-text review string
+
+    Returns:
+        {
+            "sentiment_score": float,      # 0.0–1.0
+            "sentiment_label": str,        # "Poor"/"Average"/"Good"/"Excellent"
+            "star_equivalent": float,      # 1.0–5.0
+            "avg_sentiment":   float,      # updated average for this PG
+            "review_count":    int,
+        }
+
+    Raises:
+        ValueError: If review_text is empty.
+    """
+    text = (review_text or "").strip()
+    if not text:
+        raise ValueError("Review text cannot be empty.")
+    if len(text) < 5:
+        raise ValueError("Review is too short (minimum 5 characters).")
+
+    _ensure_reviews_csv()
+
+    score = _analyze_sentiment(text)
+
+    row = pd.DataFrame([{
+        "pg_id":           int(pg_id),
+        "review_text":     text,
+        "sentiment_score": score,
+    }])
+
+    with _lock:
+        row.to_csv(REV_PATH, mode="a", header=False, index=False)
+
+    stats = get_review_stats(pg_id)
+    return {
+        "sentiment_score": score,
+        "sentiment_label": sentiment_label(score),
+        "star_equivalent": star_equivalent(score),
+        **stats,
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# TEXT REVIEWS — READ / AGGREGATE
+# ─────────────────────────────────────────────────────────────────────────
+
+def _load_reviews() -> pd.DataFrame:
+    """Load reviews.csv, returning an empty DataFrame if missing."""
+    _ensure_reviews_csv()
+    df = pd.read_csv(REV_PATH)
+    if df.empty:
+        return df
+    df["pg_id"]           = df["pg_id"].astype(int)
+    df["sentiment_score"] = df["sentiment_score"].astype(float)
+    return df
+
+
+def get_review_stats(pg_id: int) -> dict:
+    """
+    Return sentiment stats + recent reviews for a single PG.
+
+    Returns:
+        {
+            "avg_sentiment": float,   # 0.0–1.0, or 0.5 if no reviews
+            "review_count":  int,
+            "reviews":       list of {"text": str, "sentiment_score": float,
+                                      "sentiment_label": str}
+        }
+    """
+    df = _load_reviews()
+    subset = df[df["pg_id"] == int(pg_id)]
+
+    if subset.empty:
+        return {
+            "avg_sentiment": 0.5,
+            "review_count":  0,
+            "reviews":       [],
+        }
+
+    avg = round(float(subset["sentiment_score"].mean()), 4)
+    reviews = [
+        {
+            "text":            row["review_text"],
+            "sentiment_score": round(float(row["sentiment_score"]), 4),
+            "sentiment_label": sentiment_label(float(row["sentiment_score"])),
+        }
+        for _, row in subset.iterrows()
+    ]
+    # Return up to last 5 reviews (most recent last)
+    return {
+        "avg_sentiment": avg,
+        "review_count":  int(len(subset)),
+        "reviews":       reviews[-5:],
+    }
+
+
+def get_all_review_stats() -> dict:
+    """
+    Return avg_sentiment and review_count for ALL PGs that have reviews.
+
+    Returns:
+        { pg_id (int): {"avg_sentiment": float, "review_count": int} }
+    """
+    df = _load_reviews()
+    if df.empty:
+        return {}
+
+    grouped = df.groupby("pg_id")["sentiment_score"].agg(["mean", "count"]).reset_index()
+    grouped.columns = ["pg_id", "avg_sentiment", "review_count"]
+
+    result = {}
+    for _, row in grouped.iterrows():
+        result[int(row["pg_id"])] = {
+            "avg_sentiment": round(float(row["avg_sentiment"]), 4),
+            "review_count":  int(row["review_count"]),
+        }
+    return result
+
+
+# ─────────────────────────────────────────────────────────────────────────
 # TRUST / CONFIDENCE FORMULAS
-# ─────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────
 
 def compute_confidence(rating_count: int, average_rating: float) -> float:
     """

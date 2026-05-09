@@ -2,7 +2,10 @@ from flask import Flask, render_template, request, jsonify
 from src.data_loader import load_raw_data
 from src.preprocessor import preprocess, normalize_user_rent, normalize_user_meals
 from src.recommender import recommend
-from src.ratings_store import add_rating, get_stats
+from src.ratings_store import (
+    add_rating, get_stats,
+    add_review, get_review_stats, get_all_review_stats,
+)
 
 app = Flask(__name__)
 
@@ -41,6 +44,8 @@ def index():
     results = None
     user_display = None
     error_message = None
+    # pre-load all review stats so the template can show review counts without extra queries
+    all_review_stats = get_all_review_stats()
 
     if request.method == "POST":
         # Inputs
@@ -79,10 +84,23 @@ def index():
             results = None
         else:
             results = results_df.to_dict(orient="records")
+            # Attach text review data to each result card
+            for pg in results:
+                pg_id = int(pg.get("PG_ID", 0))
+                rs = get_review_stats(pg_id)
+                pg["text_reviews"]      = rs["reviews"]          # list of last 5 reviews
+                pg["text_review_count"] = rs["review_count"]
+                pg["avg_sentiment"]     = rs["avg_sentiment"]    # already in scored DF but re-attach cleanly
             
         user_display = user_raw
 
-    return render_template("index.html", results=results, user=user_display, error_message=error_message)
+    return render_template(
+        "index.html",
+        results=results,
+        user=user_display,
+        error_message=error_message,
+        all_review_stats=all_review_stats,
+    )
 
 
 # ─── Rate-PG API ─────────────────────────────────────────
@@ -106,6 +124,43 @@ def rate_pg():
         return jsonify({"success": True, "pg_id": pg_id, **stats}), 200
     except ValueError as e:
         return jsonify({"error": str(e)}), 422
+
+
+# ─── Submit Text Review API ───────────────────────────────
+@app.route("/submit-review", methods=["POST"])
+def submit_review():
+    """
+    POST /submit-review
+    Body (JSON): { "pg_id": 42, "review_text": "This PG is great, food is excellent!" }
+
+    Analyzes sentiment and persists review to data/reviews.csv.
+    Returns sentiment score, label, star equivalent, and updated averages.
+    """
+    data = request.get_json(force=True, silent=True) or {}
+    pg_id       = data.get("pg_id")
+    review_text = data.get("review_text", "").strip()
+
+    if pg_id is None:
+        return jsonify({"error": "pg_id is required"}), 400
+    if not review_text:
+        return jsonify({"error": "review_text cannot be empty"}), 400
+
+    try:
+        result = add_review(pg_id, review_text)
+        return jsonify({"success": True, "pg_id": pg_id, **result}), 200
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 422
+
+
+# ─── Get Reviews API ─────────────────────────────────────
+@app.route("/get-reviews/<int:pg_id>", methods=["GET"])
+def get_reviews(pg_id):
+    """
+    GET /get-reviews/<pg_id>
+    Returns all text reviews and sentiment stats for a PG.
+    """
+    stats = get_review_stats(pg_id)
+    return jsonify({"success": True, "pg_id": pg_id, **stats}), 200
 
 
 if __name__ == "__main__":

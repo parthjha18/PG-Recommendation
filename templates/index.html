@@ -605,6 +605,172 @@
       color: var(--teal); transition: opacity .3s;
     }
     .rating-toast.error { color: #ff6b6b; }
+
+    /* ── TEXT REVIEW WIDGET ── */
+    .review-widget {
+      margin-top: 14px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .review-widget-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 16px;
+      cursor: pointer;
+      user-select: none;
+      transition: background .2s;
+    }
+    .review-widget-header:hover { background: rgba(255,255,255,0.03); }
+    .review-widget-title {
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .1em; color: var(--muted);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .review-badge-count {
+      background: rgba(255,107,53,0.18);
+      border: 1px solid rgba(255,107,53,0.35);
+      border-radius: 999px;
+      padding: 1px 8px;
+      font-size: 10px; font-weight: 700;
+      color: var(--accent);
+    }
+    .review-widget-chevron {
+      color: var(--muted); font-size: 12px;
+      transition: transform .25s;
+    }
+    .review-widget-chevron.open { transform: rotate(180deg); }
+    .review-widget-body {
+      display: none;
+      padding: 0 16px 16px;
+    }
+    .review-widget-body.open { display: block; }
+
+    /* Sentiment pill */
+    .sentiment-indicator {
+      display: inline-flex; align-items: center; gap: 6px;
+      border-radius: 999px;
+      padding: 3px 10px;
+      font-size: 11px; font-weight: 700;
+      margin-top: 8px;
+      opacity: 0;
+      transition: opacity .3s;
+    }
+    .sentiment-indicator.visible { opacity: 1; }
+    .sentiment-indicator.excellent {
+      background: rgba(6,214,160,0.15); border: 1px solid rgba(6,214,160,0.4);
+      color: var(--teal);
+    }
+    .sentiment-indicator.good {
+      background: rgba(255,209,102,0.15); border: 1px solid rgba(255,209,102,0.35);
+      color: var(--accent2);
+    }
+    .sentiment-indicator.average {
+      background: rgba(255,107,53,0.1); border: 1px solid rgba(255,107,53,0.3);
+      color: var(--accent);
+    }
+    .sentiment-indicator.poor {
+      background: rgba(255,100,100,0.12); border: 1px solid rgba(255,100,100,0.35);
+      color: #ff6b6b;
+    }
+
+    .review-textarea {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 13px;
+      resize: vertical;
+      min-height: 80px;
+      outline: none;
+      transition: border-color .2s, box-shadow .2s;
+      margin-top: 10px;
+    }
+    .review-textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(255,107,53,.12);
+    }
+    .review-textarea::placeholder { color: var(--muted); }
+
+    .submit-review-btn {
+      margin-top: 8px;
+      background: linear-gradient(135deg, var(--accent), #ff9d6b);
+      border: none; border-radius: 8px;
+      padding: 7px 18px;
+      color: #fff; font-family: var(--font-head);
+      font-size: 12px; font-weight: 700;
+      cursor: pointer;
+      transition: transform .15s, box-shadow .15s;
+    }
+    .submit-review-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px rgba(255,107,53,.35);
+    }
+    .submit-review-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .review-toast {
+      font-size: 12px; margin-top: 6px; min-height: 16px;
+      color: var(--teal); transition: opacity .3s;
+    }
+    .review-toast.error { color: #ff6b6b; }
+
+    /* Existing reviews list */
+    .past-reviews {
+      margin-top: 14px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .past-review-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+    }
+    .past-review-text {
+      font-size: 13px; color: var(--text); line-height: 1.5;
+      margin-bottom: 4px;
+    }
+    .past-review-meta {
+      display: flex; align-items: center; gap: 6px;
+    }
+    .sent-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+    }
+    .sent-dot.excellent { background: var(--teal); }
+    .sent-dot.good      { background: var(--accent2); }
+    .sent-dot.average   { background: var(--accent); }
+    .sent-dot.poor      { background: #ff6b6b; }
+    .sent-label {
+      font-size: 10px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: .08em; color: var(--muted);
+    }
+    .sent-score {
+      font-size: 10px; color: var(--muted); margin-left: auto;
+    }
+    .no-reviews-msg {
+      font-size: 12px; color: var(--muted); font-style: italic;
+      text-align: center; padding: 8px 0;
+    }
+    .avg-sentiment-bar {
+      display: flex; align-items: center; gap: 8px;
+      margin-top: 8px; margin-bottom: 4px;
+    }
+    .avg-sent-label { font-size: 10px; color: var(--muted); white-space: nowrap; }
+    .avg-sent-track {
+      flex: 1; height: 4px;
+      background: var(--surface);
+      border-radius: 99px; overflow: hidden;
+    }
+    .avg-sent-fill {
+      height: 100%; border-radius: 99px;
+      transition: width .8s ease;
+    }
+    .avg-sent-fill.excellent { background: var(--teal); }
+    .avg-sent-fill.good      { background: var(--accent2); }
+    .avg-sent-fill.average   { background: var(--accent); }
+    .avg-sent-fill.poor      { background: #ff6b6b; }
   </style>
 </head>
 <body>
@@ -845,6 +1011,88 @@
           <div class="rating-toast" id="rt-{{ pg.get('PG_ID') }}"></div>
         </div>
 
+        <!-- Text Review Widget -->
+        <div class="review-widget" id="rvw-{{ pg.get('PG_ID') }}">
+          <div class="review-widget-header" onclick="toggleReview({{ pg.get('PG_ID') }})">
+            <span class="review-widget-title">
+              💬 Write a Review
+              {% if pg.get('text_review_count', 0) > 0 %}
+              <span class="review-badge-count" id="rvc-{{ pg.get('PG_ID') }}">{{ pg.get('text_review_count', 0) }} review{{ 's' if pg.get('text_review_count', 0) != 1 }}</span>
+              {% else %}
+              <span class="review-badge-count" id="rvc-{{ pg.get('PG_ID') }}">Be the first!</span>
+              {% endif %}
+            </span>
+            <span class="review-widget-chevron" id="chv-{{ pg.get('PG_ID') }}">▼</span>
+          </div>
+
+          <div class="review-widget-body" id="rvb-{{ pg.get('PG_ID') }}">
+
+            <!-- Avg sentiment bar (shown when reviews exist) -->
+            {% set rc = pg.get('text_review_count', 0) %}
+            {% if rc > 0 %}
+            {% set avg_s = pg.get('avg_sentiment', 0.5) %}
+            {% if avg_s >= 0.7 %}{% set slbl = 'excellent' %}
+            {% elif avg_s >= 0.5 %}{% set slbl = 'good' %}
+            {% elif avg_s >= 0.3 %}{% set slbl = 'average' %}
+            {% else %}{% set slbl = 'poor' %}{% endif %}
+            <div class="avg-sentiment-bar" id="asb-{{ pg.get('PG_ID') }}">
+              <span class="avg-sent-label">Review Sentiment</span>
+              <div class="avg-sent-track">
+                <div class="avg-sent-fill {{ slbl }}" id="asf-{{ pg.get('PG_ID') }}" style="width:{{ (avg_s * 100) | int }}%"></div>
+              </div>
+              <span class="sent-label" id="asl-{{ pg.get('PG_ID') }}">{{ slbl | title }}</span>
+            </div>
+            {% else %}
+            <div class="avg-sentiment-bar" id="asb-{{ pg.get('PG_ID') }}" style="display:none">
+              <span class="avg-sent-label">Review Sentiment</span>
+              <div class="avg-sent-track">
+                <div class="avg-sent-fill good" id="asf-{{ pg.get('PG_ID') }}" style="width:0%"></div>
+              </div>
+              <span class="sent-label" id="asl-{{ pg.get('PG_ID') }}"></span>
+            </div>
+            {% endif %}
+
+            <!-- Past reviews list -->
+            <div class="past-reviews" id="prl-{{ pg.get('PG_ID') }}">
+              {% if pg.get('text_reviews') %}
+                {% for rev in pg.text_reviews %}
+                {% set sc = rev.sentiment_score %}
+                {% if sc >= 0.7 %}{% set sl = 'excellent' %}
+                {% elif sc >= 0.5 %}{% set sl = 'good' %}
+                {% elif sc >= 0.3 %}{% set sl = 'average' %}
+                {% else %}{% set sl = 'poor' %}{% endif %}
+                <div class="past-review-item">
+                  <div class="past-review-text">"{{ rev.text }}"</div>
+                  <div class="past-review-meta">
+                    <span class="sent-dot {{ sl }}"></span>
+                    <span class="sent-label">{{ rev.sentiment_label }}</span>
+                    <span class="sent-score">{{ "%.2f"|format(sc) }} / 1.0</span>
+                  </div>
+                </div>
+                {% endfor %}
+              {% else %}
+                <div class="no-reviews-msg" id="nrm-{{ pg.get('PG_ID') }}">No reviews yet — be the first to share your experience!</div>
+              {% endif %}
+            </div>
+
+            <!-- Input area -->
+            <textarea
+              class="review-textarea"
+              id="rtx-{{ pg.get('PG_ID') }}"
+              placeholder="e.g. Great location, food is decent, WiFi is fast. Overall a good place to stay!"
+              maxlength="500"
+              oninput="previewSentiment({{ pg.get('PG_ID') }}, this.value)"
+            ></textarea>
+            <div class="sentiment-indicator" id="si-{{ pg.get('PG_ID') }}"></div>
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-top:6px;">
+              <span style="font-size:11px; color:var(--muted);">Max 500 characters</span>
+              <button class="submit-review-btn" id="srb-{{ pg.get('PG_ID') }}" onclick="submitReview({{ pg.get('PG_ID') }})">📨 Submit Review</button>
+            </div>
+            <div class="review-toast" id="rvt-{{ pg.get('PG_ID') }}"></div>
+
+          </div>
+        </div>
+
         <!-- Why matched -->
         {% if pg.get('Why_Matched') %}
         <div class="why-box">
@@ -952,6 +1200,185 @@
     } catch (err) {
       toast.textContent = 'Network error. Please try again.';
       toast.className = 'rating-toast error';
+    }
+  }
+
+  /* ── Text Review Widget ── */
+
+  function toggleReview(pgId) {
+    const body = document.getElementById('rvb-' + pgId);
+    const chv  = document.getElementById('chv-' + pgId);
+    const isOpen = body.classList.toggle('open');
+    chv.classList.toggle('open', isOpen);
+  }
+
+  /* Live sentiment preview while user types */
+  const _debounceTimers = {};
+  function previewSentiment(pgId, text) {
+    clearTimeout(_debounceTimers[pgId]);
+    const indicator = document.getElementById('si-' + pgId);
+    if (!text.trim()) {
+      indicator.className = 'sentiment-indicator';
+      indicator.textContent = '';
+      return;
+    }
+    _debounceTimers[pgId] = setTimeout(() => {
+      const score = localSentimentScore(text);
+      const { label, cls, emoji } = scoreToMeta(score);
+      indicator.className = 'sentiment-indicator visible ' + cls;
+      indicator.textContent = emoji + ' Preview: ' + label + ' (' + score.toFixed(2) + ')';
+    }, 350);
+  }
+
+  /* Client-side simplified sentiment (mirrors server logic approximately) */
+  const POS_WORDS = [
+    'excellent','great','good','nice','amazing','awesome','fantastic',
+    'superb','wonderful','perfect','love','happy','satisfied','clean','comfortable',
+    'spacious','helpful','friendly','tasty','delicious','affordable','value',
+    'safe','secure','quiet','peaceful','decent','recommended','recommend',
+    'brilliant','impressive','reasonable','convenient','accessible',
+    'like','enjoy','enjoyed','works','working','fast','quick','smooth',
+    'warm','cozy','neat','maintained','maintained well',
+  ];
+  const NEG_WORDS = [
+    'terrible','horrible','awful','bad','worst','dirty','noisy','rude',
+    'unhelpful','overpriced','expensive','broken','slow','poor','disgusting','filthy',
+    'avoid','scam','fraud','cheating','disappointed','pathetic','unhygienic','unsafe',
+    'stale','tasteless','cockroaches','pests','waste','problem','problems',
+    'issue','issues','properly','complaint','complaints',
+  ];
+  const AMPLIFIERS = new Set(['very','really','extremely','super','absolutely','highly','totally','so']);
+  const NEGATORS   = new Set(['not','no','never',"didn't",'dont',"don't",'does not',"doesn't","isn't",'is not',"wasn't",'was not',"won't",'will not',"can't",'cannot','did not']);
+
+  function localSentimentScore(text) {
+    // Normalise: lowercase, collapse punctuation to spaces
+    const cleaned = text.toLowerCase().replace(/[^a-z0-9'\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    const words   = cleaned.split(' ');
+    let raw = 0;
+    let mod = 1;          // current modifier (negation / amplifier)
+    let modDecay = 0;     // counts words since last modifier — reset mod after 3 non-sentiment words
+
+    for (let i = 0; i < words.length; i++) {
+      const w = words[i];
+
+      // Try two-word phrases first (e.g. "did not", "does not")
+      const bigram = i + 1 < words.length ? w + ' ' + words[i+1] : '';
+      if (NEGATORS.has(bigram)) { mod *= -1; modDecay = 0; i++; continue; }
+
+      if (NEGATORS.has(w))   { mod *= -1; modDecay = 0; continue; }
+      if (AMPLIFIERS.has(w)) { mod *= 1.4; modDecay = 0; continue; }
+
+      if (POS_WORDS.includes(w)) {
+        raw += 1.0 * mod;
+        mod = 1; modDecay = 0;
+      } else if (NEG_WORDS.includes(w)) {
+        raw += -1.0 * mod;
+        mod = 1; modDecay = 0;
+      } else {
+        // Non-sentiment word: decay modifier window
+        if (mod !== 1) {
+          modDecay++;
+          if (modDecay >= 3) { mod = 1; modDecay = 0; }  // negation expired after 3 skip words
+        }
+      }
+    }
+
+    const clip = 8;
+    return Math.max(0, Math.min(1, (Math.max(-clip, Math.min(clip, raw)) + clip) / (2 * clip)));
+  }
+
+  function scoreToMeta(score) {
+    if (score >= 0.70) return { label: 'Excellent', cls: 'excellent', emoji: '🌟' };
+    if (score >= 0.50) return { label: 'Good',      cls: 'good',      emoji: '👍' };
+    if (score >= 0.30) return { label: 'Average',   cls: 'average',   emoji: '😐' };
+    return                     { label: 'Poor',      cls: 'poor',      emoji: '👎' };
+  }
+
+  async function submitReview(pgId) {
+    const textarea = document.getElementById('rtx-' + pgId);
+    const toast    = document.getElementById('rvt-' + pgId);
+    const btn      = document.getElementById('srb-' + pgId);
+    const text     = textarea.value.trim();
+
+    if (!text) {
+      toast.textContent = 'Please write a review first!';
+      toast.className = 'review-toast error';
+      return;
+    }
+    if (text.length < 5) {
+      toast.textContent = 'Review is too short (minimum 5 characters).';
+      toast.className = 'review-toast error';
+      return;
+    }
+
+    btn.disabled = true;
+    toast.textContent = 'Analyzing sentiment...';
+    toast.className = 'review-toast';
+
+    try {
+      const res  = await fetch('/submit-review', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pg_id: pgId, review_text: text }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        const { label, cls, emoji } = scoreToMeta(data.sentiment_score);
+
+        toast.textContent = `${emoji} Saved! Sentiment: ${data.sentiment_label} (score ${data.sentiment_score.toFixed(2)})`;
+        toast.className = 'review-toast';
+
+        /* Update review count badge */
+        const badge = document.getElementById('rvc-' + pgId);
+        if (badge) {
+          const cnt = data.review_count;
+          badge.textContent = cnt + ' review' + (cnt === 1 ? '' : 's');
+        }
+
+        /* Update avg sentiment bar */
+        const asb = document.getElementById('asb-' + pgId);
+        const asf = document.getElementById('asf-' + pgId);
+        const asl = document.getElementById('asl-' + pgId);
+        if (asb && asf && asl) {
+          asb.style.display = '';
+          const avgCls = scoreToMeta(data.avg_sentiment).cls;
+          asf.style.width = (data.avg_sentiment * 100).toFixed(0) + '%';
+          asf.className = 'avg-sent-fill ' + avgCls;
+          asl.textContent = scoreToMeta(data.avg_sentiment).label;
+        }
+
+        /* Inject new review into past-reviews list */
+        const prl = document.getElementById('prl-' + pgId);
+        if (prl) {
+          const nrm = document.getElementById('nrm-' + pgId);
+          if (nrm) nrm.remove();
+          const item = document.createElement('div');
+          item.className = 'past-review-item';
+          item.innerHTML = `
+            <div class="past-review-text">"${text}"</div>
+            <div class="past-review-meta">
+              <span class="sent-dot ${cls}"></span>
+              <span class="sent-label">${label}</span>
+              <span class="sent-score">${data.sentiment_score.toFixed(2)} / 1.0</span>
+            </div>`;
+          prl.appendChild(item);
+        }
+
+        /* Clear textarea & preview indicator */
+        textarea.value = '';
+        const si = document.getElementById('si-' + pgId);
+        if (si) { si.className = 'sentiment-indicator'; si.textContent = ''; }
+
+      } else {
+        toast.textContent = data.error || 'Something went wrong.';
+        toast.className = 'review-toast error';
+      }
+    } catch (err) {
+      toast.textContent = 'Network error. Please try again.';
+      toast.className = 'review-toast error';
+    } finally {
+      btn.disabled = false;
     }
   }
 </script>

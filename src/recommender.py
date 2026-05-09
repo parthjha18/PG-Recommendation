@@ -26,6 +26,7 @@ from config import (
 )
 from src.ratings_store import (
     get_all_stats,
+    get_all_review_stats,
     compute_confidence,
     compute_trust,
     _DEFAULT_AVG,
@@ -274,39 +275,72 @@ def recommend(
     df_scored["average_rating"] = df_scored["PG_ID"].apply(_get_avg)
     df_scored["rating_count"]   = df_scored["PG_ID"].apply(_get_cnt)
 
+    # 2b. Merge text-review sentiment scores
+    #
+    #    avg_sentiment is in [0, 1] where:
+    #      0.0 = very negative reviews
+    #      0.5 = neutral (default when no reviews)
+    #      1.0 = very positive reviews
+    #
+    all_review_stats = get_all_review_stats()  # { pg_id: {avg_sentiment, review_count} }
+
+    def _get_sentiment(pg_id):
+        return all_review_stats.get(int(pg_id), {}).get("avg_sentiment", 0.5)
+
+    def _get_review_count(pg_id):
+        return all_review_stats.get(int(pg_id), {}).get("review_count", 0)
+
+    df_scored["avg_sentiment"]  = df_scored["PG_ID"].apply(_get_sentiment)
+    df_scored["review_count"]   = df_scored["PG_ID"].apply(_get_review_count)
+
     # 3. Compute a single trust_multiplier per PG.
     #
-    #    Design goal:
-    #      - 0 ratings      → 0.50 (neutral, no evidence either way)
-    #      - few good ratings → slightly above 0.5  (small boost)
-    #      - many good ratings→ approaching 1.0      (strong boost)
-    #      - bad ratings    → below 0.5             (penalty)
+    #    Now blends BOTH star ratings AND text-review sentiment:
     #
-    #    Formula:
-    #      weight = n / (n + 10)          # 0→0, grows to 1 as n→∞
-    #                                     # reaches 0.5 at n=10, ~0.83 at n=50
-    #      signal = (avg - 3.0) / 2.0    # -1 (avg=1) → 0 (avg=3) → +1 (avg=5)
-    #      multiplier = clip(0.5 + 0.5 × weight × signal, 0.1, 1.0)
+    #    Star rating component:
+    #      weight_r = n / (n + 10)              # 0→0, grows to 1 as n→∞
+    #      signal_r = (avg - 3.0) / 2.0         # -1 (avg=1) → 0 (avg=3) → +1 (avg=5)
+    #      star_mult = clip(0.5 + 0.5 × weight_r × signal_r, 0.1, 1.0)
+    #
+    #    Text-review sentiment component:
+    #      weight_t = review_count / (review_count + 5)   # weights up faster (fewer needed)
+    #      signal_t = (avg_sentiment - 0.5) × 2           # -1 → 0 → +1
+    #      text_mult = clip(0.5 + 0.5 × weight_t × signal_t, 0.1, 1.0)
+    #
+    #    Combined multiplier (70% star ratings, 30% text sentiment):
+    #      trust_multiplier = 0.70 × star_mult + 0.30 × text_mult
+    #      (when no reviews exist text_mult = 0.5 → contribution = 0.15 neutral)
     #
     #    Examples:
-    #      n=0,  avg=3.5 (default) → 0.50  (neutral)
-    #      n=2,  avg=5.0           → 0.58  (small boost — correctly above neutral)
-    #      n=10, avg=5.0           → 0.75
-    #      n=50, avg=5.0           → 0.92
-    #      n=2,  avg=1.0           → 0.42  (small penalty)
-    #
-    #    Previous bug: confidence × trust_norm both started near 0 for small n,
-    #    making a PG with 2×5-star ratings (0.0345) score BELOW an unrated PG (0.25).
+    #      n=0,  avg=3.5 (default), 0 reviews → 0.50 × 0.70 + 0.50 × 0.30 = 0.50 (neutral)
+    #      n=10, avg=5.0, 0 reviews → 0.75 × 0.70 + 0.50 × 0.30 = 0.675
+    #      n=10, avg=5.0, 3 reviews Excellent → 0.75 × 0.70 + 0.85 × 0.30 ≈ 0.78  (big boost)
+    #      n=10, avg=5.0, 3 reviews Poor → 0.75 × 0.70 + 0.15 × 0.30 ≈ 0.57  (penalty)
 
-    def _trust_multiplier(n: int, avg: float) -> float:
+    def _star_multiplier(n: int, avg: float) -> float:
         if n == 0:
             return 0.5
         weight = n / (n + 10)
-        signal = (avg - 3.0) / 2.0          # -1 → +1
+        signal = (avg - 3.0) / 2.0
         return max(0.1, min(1.0, 0.5 + 0.5 * weight * signal))
 
+    def _text_multiplier(review_count: int, avg_sentiment: float) -> float:
+        if review_count == 0:
+            return 0.5  # neutral — no reviews yet
+        weight = review_count / (review_count + 5)
+        signal = (avg_sentiment - 0.5) * 2.0   # -1 → +1
+        return max(0.1, min(1.0, 0.5 + 0.5 * weight * signal))
+
+    def _trust_multiplier(n: int, avg: float, r_cnt: int, sent: float) -> float:
+        sm = _star_multiplier(n, avg)
+        tm = _text_multiplier(r_cnt, sent)
+        return round(0.70 * sm + 0.30 * tm, 4)
+
     df_scored["trust_multiplier"] = df_scored.apply(
-        lambda r: _trust_multiplier(int(r["rating_count"]), float(r["average_rating"])), axis=1
+        lambda r: _trust_multiplier(
+            int(r["rating_count"]), float(r["average_rating"]),
+            int(r["review_count"]),  float(r["avg_sentiment"]),
+        ), axis=1
     )
     # Keep separate columns for display on the card
     df_scored["Confidence_Score"] = df_scored["trust_multiplier"]   # shown as "Confidence"
