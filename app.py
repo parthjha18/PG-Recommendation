@@ -53,6 +53,7 @@ def index():
         location = request.form.get("location", "").strip().lower()
         meals    = int(request.form.get("meals", 2))
         gender   = int(request.form.get("gender", 2))
+        sharing  = request.form.get("sharing", "Any")
         wifi     = 1 if request.form.get("wifi") else 0
         ac       = 1 if request.form.get("ac") else 0
         laundry  = 1 if request.form.get("laundry") else 0
@@ -61,6 +62,7 @@ def index():
         user_raw = {
             "budget":   budget,
             "location": location,
+            "sharing":  sharing,
             "wifi":     wifi,
             "ac":       ac,
             "laundry":  laundry,
@@ -77,7 +79,7 @@ def index():
         if laundry: user_normalized["Laundry"] = 1
         if food: user_normalized["Weekend_Food"] = 1
 
-        results_df = recommend(df, user_normalized, location, budget, gender)
+        results_df = recommend(df, user_normalized, location, budget, gender, sharing=sharing)
         
         if isinstance(results_df, str):
             error_message = results_df
@@ -88,9 +90,26 @@ def index():
             for pg in results:
                 pg_id = int(pg.get("PG_ID", 0))
                 rs = get_review_stats(pg_id)
-                pg["text_reviews"]      = rs["reviews"]          # list of last 5 reviews
+                pg["text_reviews"]      = rs["reviews"]
                 pg["text_review_count"] = rs["review_count"]
-                pg["avg_sentiment"]     = rs["avg_sentiment"]    # already in scored DF but re-attach cleanly
+                pg["avg_sentiment"]     = rs["avg_sentiment"]
+
+                # ── Combined display rating ──────────────────────────────
+                # Blends numeric star ratings (70%) with text-review
+                # sentiment star-equivalent (30%) so that negative text
+                # reviews visibly pull down the shown score.
+                #
+                # sentiment star-equivalent: avg_sentiment ∈ [0,1] → [1,5]
+                # text_weight grows with review_count (0 reviews → 0 weight)
+                star_avg  = float(pg.get("average_rating", 3.5))
+                sent_avg  = float(rs["avg_sentiment"])        # 0.0–1.0
+                sent_star = 1.0 + sent_avg * 4.0             # 1.0–5.0
+                r_cnt     = int(rs["review_count"])
+                # weight for text component: 0 reviews → 0%, grows toward 30%
+                text_w = 0.30 * (r_cnt / (r_cnt + 3))        # 3 reviews → 15%, 10 → 23%
+                star_w = 1.0 - text_w
+                pg["combined_display_rating"] = round(star_w * star_avg + text_w * sent_star, 1)
+                pg["has_text_influence"]      = r_cnt > 0
             
         user_display = user_raw
 
@@ -164,4 +183,4 @@ def get_reviews(pg_id):
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, port=5001)

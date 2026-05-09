@@ -38,7 +38,7 @@ from src.ratings_store import (
 # HARD FILTER
 # ─────────────────────────────────────────────────────────────
 
-def hard_filter(df: pd.DataFrame, budget: float, gender: int) -> pd.DataFrame:
+def hard_filter(df: pd.DataFrame, budget: float, gender: int, sharing: str = "Any") -> pd.DataFrame:
     """
     Remove PGs that are definitively invalid before scoring.
 
@@ -63,6 +63,9 @@ def hard_filter(df: pd.DataFrame, budget: float, gender: int) -> pd.DataFrame:
         (df["Original_Rent"] <= budget) &           # raw ₹ comparison — fixed
         (df["Gender"].isin(valid_genders))           # inclusive gender match — fixed
     ].copy()
+
+    if sharing != "Any":
+        df_filtered = df_filtered[df_filtered["Sharing"] == sharing].copy()
 
     return df_filtered
 
@@ -227,6 +230,7 @@ def recommend(
     gender: int,
     top_n: int = DEFAULT_TOP_N,
     weights: dict = None,
+    sharing: str = "Any",
 ) -> pd.DataFrame:
     """
     Run the complete recommendation pipeline.
@@ -251,7 +255,7 @@ def recommend(
     Raises:
         ValueError: If no PGs match the hard filter criteria.
     """
-    df_filtered = hard_filter(df, budget, gender)
+    df_filtered = hard_filter(df, budget, gender, sharing)
 
     if df_filtered.empty:
         return "No suitable PG found based on your preferences. Try adjusting filters."

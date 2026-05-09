@@ -832,6 +832,16 @@
           </select>
         </div>
 
+        <div class="field">
+          <label>Room Sharing</label>
+          <select name="sharing">
+            <option value="Any" selected>🛏️ Any</option>
+            <option value="Single">👤 Single</option>
+            <option value="Double">👥 Double</option>
+            <option value="Triple">👨‍👨‍👦 Triple</option>
+          </select>
+        </div>
+
         <!-- SECTION: Meals -->
         <div class="section-label">Meals</div>
 
@@ -884,6 +894,7 @@
       <span>💰 <strong>₹{{ user.budget | int | format_inr }}</strong></span>
       {% if user.location %}<span>📍 <strong>{{ user.location | title }}</strong></span>{% endif %}
       <span>👤 <strong>{{ ['Boys', 'Girls', 'Co-ed'][user.gender] }}</strong></span>
+      {% if user.sharing and user.sharing != 'Any' %}<span>🛏️ <strong>{{ user.sharing }} Sharing</strong></span>{% endif %}
       <span>🍽 <strong>{{ user.meals }} meals/day</strong></span>
     </div>
 
@@ -985,8 +996,26 @@
           <div class="score-bar-track">
             <div class="score-bar-fill" style="width: {{ score_pct }}%"></div>
           </div>
-          <div style="font-size: 11px; color: var(--muted); margin-top: 8px; display: flex; justify-content: space-between;">
-             <span>⭐ {{ "%.1f"|format(pg.get('average_rating', 3.5)) }} ({{ pg.get('rating_count', 0) }} reviews)</span>
+          <div style="font-size: 11px; color: var(--muted); margin-top: 8px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px;">
+             <span>
+               ⭐
+               {% if pg.get('has_text_influence') %}
+                 <strong style="color: var(--accent2); font-size: 12px;">{{ "%.1f"|format(pg.get('combined_display_rating', pg.get('average_rating', 3.5))) }}</strong>
+                 <span style="color: var(--muted);">/ 5</span>
+                 <span style="
+                   background: rgba(6,214,160,0.12);
+                   border: 1px solid rgba(6,214,160,0.3);
+                   border-radius: 999px;
+                   padding: 1px 6px;
+                   font-size: 10px;
+                   color: var(--teal);
+                   margin-left: 4px;
+                 " title="Blends {{ pg.get('rating_count',0) }} star ratings + {{ pg.get('text_review_count',0) }} text reviews">💬 combined</span>
+                 <span style="color: var(--muted); margin-left: 4px;">(★ {{ "%.1f"|format(pg.get('average_rating', 3.5)) }} · 💬 {{ "%.1f"|format(1.0 + pg.get('avg_sentiment', 0.5) * 4.0) }})</span>
+               {% else %}
+                 {{ "%.1f"|format(pg.get('average_rating', 3.5)) }} ({{ pg.get('rating_count', 0) }} ratings)
+               {% endif %}
+             </span>
              <span>Confidence: {{ "%.2f"|format(pg.get('Confidence_Score', 0.0)) }}</span>
           </div>
         </div>
