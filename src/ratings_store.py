@@ -1,60 +1,37 @@
 """
 src/ratings_store.py
 ─────────────────────
-Handles persistent user ratings AND text reviews stored in data/.
+Handles persistent user ratings AND text reviews stored in PostgreSQL.
 
 Provides:
-  - add_rating(pg_id, rating)           → append to ratings.csv
+  - add_rating(pg_id, rating)           → insert into ratings table
   - get_stats(pg_id)                    → {average_rating, rating_count}
   - get_all_stats()                     → dict keyed by pg_id
   - compute_confidence(...)             → consistency × (avg / 5)
   - compute_trust(...)                  → log(1 + count) × (avg / 5)
 
   Text reviews:
-  - add_review(pg_id, text)             → analyze sentiment, append to reviews.csv
+  - add_review(pg_id, text)             → analyze sentiment, insert into reviews table
   - get_review_stats(pg_id)             → {avg_sentiment, review_count, reviews: [...]}
   - get_all_review_stats()              → dict keyed by pg_id
 """
 
-import os
 import math
-import threading
 import pandas as pd
+from sqlalchemy import create_engine
+import sys
+import os
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from config import DATABASE_URL
 
 from src.sentiment_analyzer import analyze as _analyze_sentiment, sentiment_label, star_equivalent
-
-# ── File paths ─────────────────────────────────────────────────────────────
-_BASE     = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CSV_PATH  = os.path.join(_BASE, "data", "ratings.csv")
-REV_PATH  = os.path.join(_BASE, "data", "reviews.csv")
-
-# Thread-safe write lock (shared across both files)
-_lock = threading.Lock()
 
 # ── Defaults when a PG has zero user ratings ──────────────────────────────
 _DEFAULT_AVG   = 3.5   # neutral starting average
 _DEFAULT_COUNT = 0
 
-
-# ─────────────────────────────────────────────────────────────────────────
-# INIT: ensure files exist
-# ─────────────────────────────────────────────────────────────────────────
-
-def _ensure_csv() -> None:
-    """Create ratings.csv with headers if it doesn't exist."""
-    if not os.path.exists(CSV_PATH):
-        os.makedirs(os.path.dirname(CSV_PATH), exist_ok=True)
-        pd.DataFrame(columns=["pg_id", "rating"]).to_csv(CSV_PATH, index=False)
-
-
-def _ensure_reviews_csv() -> None:
-    """Create reviews.csv with headers if it doesn't exist."""
-    if not os.path.exists(REV_PATH):
-        os.makedirs(os.path.dirname(REV_PATH), exist_ok=True)
-        pd.DataFrame(columns=["pg_id", "review_text", "sentiment_score"]).to_csv(
-            REV_PATH, index=False
-        )
-
+engine = create_engine(DATABASE_URL)
 
 # ─────────────────────────────────────────────────────────────────────────
 # STAR RATINGS — WRITE
@@ -62,7 +39,7 @@ def _ensure_reviews_csv() -> None:
 
 def add_rating(pg_id: int, rating: int) -> dict:
     """
-    Append a new star rating to ratings.csv.
+    Append a new star rating to the database.
 
     Args:
         pg_id:  Integer PG identifier (matches PG_ID column in dataset)
@@ -77,12 +54,8 @@ def add_rating(pg_id: int, rating: int) -> dict:
     if not (1 <= int(rating) <= 5):
         raise ValueError(f"Rating must be 1–5, got {rating}")
 
-    _ensure_csv()
-
     row = pd.DataFrame([{"pg_id": int(pg_id), "rating": int(rating)}])
-
-    with _lock:
-        row.to_csv(CSV_PATH, mode="a", header=False, index=False)
+    row.to_sql("ratings", engine, if_exists="append", index=False)
 
     return get_stats(pg_id)
 
@@ -92,9 +65,12 @@ def add_rating(pg_id: int, rating: int) -> dict:
 # ─────────────────────────────────────────────────────────────────────────
 
 def _load() -> pd.DataFrame:
-    """Load the ratings CSV, returning an empty DataFrame if missing."""
-    _ensure_csv()
-    df = pd.read_csv(CSV_PATH)
+    """Load the ratings from the database, returning an empty DataFrame if missing."""
+    try:
+        df = pd.read_sql("SELECT * FROM ratings", engine)
+    except Exception:
+        df = pd.DataFrame(columns=["pg_id", "rating"])
+    
     if df.empty:
         return df
     df["pg_id"]  = df["pg_id"].astype(int)
@@ -152,7 +128,7 @@ def get_all_stats() -> dict:
 
 def add_review(pg_id: int, review_text: str) -> dict:
     """
-    Analyze sentiment of a text review and persist it to reviews.csv.
+    Analyze sentiment of a text review and persist it to the database.
 
     Args:
         pg_id:       Integer PG identifier
@@ -176,8 +152,6 @@ def add_review(pg_id: int, review_text: str) -> dict:
     if len(text) < 5:
         raise ValueError("Review is too short (minimum 5 characters).")
 
-    _ensure_reviews_csv()
-
     score = _analyze_sentiment(text)
 
     row = pd.DataFrame([{
@@ -186,8 +160,7 @@ def add_review(pg_id: int, review_text: str) -> dict:
         "sentiment_score": score,
     }])
 
-    with _lock:
-        row.to_csv(REV_PATH, mode="a", header=False, index=False)
+    row.to_sql("reviews", engine, if_exists="append", index=False)
 
     stats = get_review_stats(pg_id)
     return {
@@ -203,9 +176,12 @@ def add_review(pg_id: int, review_text: str) -> dict:
 # ─────────────────────────────────────────────────────────────────────────
 
 def _load_reviews() -> pd.DataFrame:
-    """Load reviews.csv, returning an empty DataFrame if missing."""
-    _ensure_reviews_csv()
-    df = pd.read_csv(REV_PATH)
+    """Load reviews from database, returning an empty DataFrame if missing."""
+    try:
+        df = pd.read_sql("SELECT * FROM reviews", engine)
+    except Exception:
+        df = pd.DataFrame(columns=["pg_id", "review_text", "sentiment_score"])
+        
     if df.empty:
         return df
     df["pg_id"]           = df["pg_id"].astype(int)

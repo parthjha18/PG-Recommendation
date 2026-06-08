@@ -6,6 +6,7 @@ import os
 BASE_DIR        = os.path.dirname(os.path.abspath(__file__))
 DATA_RAW_PATH   = os.path.join(BASE_DIR, "data", "raw", "PG Dataset.csv")
 DATA_CACHE_PATH = os.path.join(BASE_DIR, "data", "processed", "pg_encoded.pkl")
+DATABASE_URL    = os.environ.get("DATABASE_URL", "postgresql://localhost/pg_recommendation")
 
 # ─────────────────────────────────────────────
 # COLUMN DEFINITIONS

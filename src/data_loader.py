@@ -11,33 +11,29 @@ Responsible for:
 import os
 import pandas as pd
 import sys
+from sqlalchemy import create_engine
 
 # Add project root to path so config can be imported from anywhere
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config import DATA_RAW_PATH, REQUIRED_COLUMNS
+from config import DATABASE_URL, REQUIRED_COLUMNS
 
 
-def load_raw_data(filepath: str = DATA_RAW_PATH) -> pd.DataFrame:
+def load_raw_data() -> pd.DataFrame:
     """
-    Load the PG dataset from a CSV file.
-
-    Args:
-        filepath: Path to the CSV file (defaults to config.DATA_RAW_PATH)
+    Load the PG dataset from PostgreSQL.
 
     Returns:
         Raw DataFrame with duplicates removed.
 
     Raises:
-        FileNotFoundError: If the CSV file does not exist.
         ValueError: If any required column is missing from the dataset.
     """
-    if not os.path.exists(filepath):
-        raise FileNotFoundError(
-            f"Dataset not found at: {filepath}\n"
-            f"Please make sure the CSV is placed in: data/raw/"
-        )
-
-    df = pd.read_csv(filepath)
+    engine = create_engine(DATABASE_URL)
+    
+    try:
+        df = pd.read_sql("SELECT * FROM pg_dataset", engine)
+    except Exception as e:
+        raise RuntimeError(f"Failed to read from database: {e}")
 
     # Check all required columns are present
     missing_cols = [col for col in REQUIRED_COLUMNS if col not in df.columns]
