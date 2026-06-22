@@ -24,14 +24,23 @@ from config import (
     GENDER_COMPAT,
     DEFAULT_TOP_N,
 )
-from src.ratings_store import (
-    get_all_stats,
-    get_all_review_stats,
-    compute_confidence,
-    compute_trust,
-    _DEFAULT_AVG,
-    _DEFAULT_COUNT,
+from config import (
+    DEFAULT_WEIGHTS,
+    LOCATION_WEIGHT,
+    LOCATION_FUZZY_THRESHOLD,
+    GENDER_COMPAT,
+    DEFAULT_TOP_N,
 )
+
+_DEFAULT_AVG   = 3.5
+_DEFAULT_COUNT = 0
+
+def compute_confidence(rating_count: int, average_rating: float) -> float:
+    consistency = rating_count / (rating_count + 10)
+    return round(consistency * (average_rating / 5.0), 4)
+
+def compute_trust(rating_count: int, average_rating: float) -> float:
+    return round(math.log1p(rating_count) * (average_rating / 5.0), 4)
 
 
 # ─────────────────────────────────────────────────────────────
@@ -231,6 +240,7 @@ def recommend(
     top_n: int = DEFAULT_TOP_N,
     weights: dict = None,
     sharing: str = "Any",
+    db_stats: dict = None,
 ) -> pd.DataFrame:
     """
     Run the complete recommendation pipeline.
@@ -268,31 +278,26 @@ def recommend(
     df_scored["base_score"] = 1.0 - ((df_scored["final_score"] - min_d) / (max_d - min_d + 1e-9))
 
     # 2. Merge in REAL user ratings from ratings_store
-    all_stats = get_all_stats()   # { pg_id: {average_rating, rating_count} }
+    db_stats = db_stats or {}
+    all_stats = db_stats.get("ratings", {})   # { pg_id: {average_rating, rating_count} }
 
     def _get_avg(pg_id):
-        return all_stats.get(int(pg_id), {}).get("average_rating", _DEFAULT_AVG)
+        return all_stats.get(str(pg_id), {}).get("average_rating", _DEFAULT_AVG)
 
     def _get_cnt(pg_id):
-        return all_stats.get(int(pg_id), {}).get("rating_count", _DEFAULT_COUNT)
+        return all_stats.get(str(pg_id), {}).get("rating_count", _DEFAULT_COUNT)
 
     df_scored["average_rating"] = df_scored["PG_ID"].apply(_get_avg)
     df_scored["rating_count"]   = df_scored["PG_ID"].apply(_get_cnt)
 
     # 2b. Merge text-review sentiment scores
-    #
-    #    avg_sentiment is in [0, 1] where:
-    #      0.0 = very negative reviews
-    #      0.5 = neutral (default when no reviews)
-    #      1.0 = very positive reviews
-    #
-    all_review_stats = get_all_review_stats()  # { pg_id: {avg_sentiment, review_count} }
+    all_review_stats = db_stats.get("reviews", {})  # { pg_id: {avg_sentiment, review_count} }
 
     def _get_sentiment(pg_id):
-        return all_review_stats.get(int(pg_id), {}).get("avg_sentiment", 0.5)
+        return all_review_stats.get(str(pg_id), {}).get("avg_sentiment", 0.5)
 
     def _get_review_count(pg_id):
-        return all_review_stats.get(int(pg_id), {}).get("review_count", 0)
+        return all_review_stats.get(str(pg_id), {}).get("review_count", 0)
 
     df_scored["avg_sentiment"]  = df_scored["PG_ID"].apply(_get_sentiment)
     df_scored["review_count"]   = df_scored["PG_ID"].apply(_get_review_count)
