@@ -1,3 +1,5 @@
+fastapi>=0.110.0
+uvicorn>=0.29.0
 pandas>=1.5.0
 numpy>=1.23.0
 scikit-learn>=1.2.0
@@ -7,4 +9,3 @@ transformers>=4.30.0
 torch>=2.0.0
 psycopg2-binary>=2.9.0
 SQLAlchemy>=2.0.0
-SQLAlchemy-Utils>=0.41.1
