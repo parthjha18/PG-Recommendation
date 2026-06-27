@@ -270,7 +270,14 @@ def recommend(
     df_scored["base_score"] = 1.0 - ((df_scored["final_score"] - min_d) / (max_d - min_d + 1e-9))
 
     # 2. Merge in REAL user ratings from ratings_store (or external db_stats)
-    all_stats = db_stats if db_stats is not None else get_all_stats()
+    # NOTE: JSON keys arrive as strings; normalize to int so lookups always work
+    def _normalize_keys(d: dict) -> dict:
+        if d is None:
+            return {}
+        return {int(k): v for k, v in d.items()}
+
+    raw_stats = db_stats if db_stats is not None else get_all_stats()
+    all_stats = _normalize_keys(raw_stats)
 
     def _get_avg(pg_id):
         return all_stats.get(int(pg_id), {}).get("average_rating", _DEFAULT_AVG)
@@ -288,7 +295,8 @@ def recommend(
     #      0.5 = neutral (default when no reviews)
     #      1.0 = very positive reviews
     #
-    all_review_stats = review_stats if review_stats is not None else get_all_review_stats()
+    raw_review_stats = review_stats if review_stats is not None else get_all_review_stats()
+    all_review_stats = _normalize_keys(raw_review_stats)
 
     def _get_sentiment(pg_id):
         return all_review_stats.get(int(pg_id), {}).get("avg_sentiment", 0.5)
