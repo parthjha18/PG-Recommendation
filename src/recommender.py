@@ -6,7 +6,7 @@ Responsible for:
   - Scoring PGs using weighted squared-distance formula
   - Fuzzy location matching bonus
   - Ranking and normalizing scores to a [1.0, 5.0] rating
-  - Trust-aware scoring using real user ratings (ratings_store)
+  - Trust-aware scoring using real user ratings (via db_stats from Express/Prisma)
 """
 
 import os
@@ -24,9 +24,7 @@ from config import (
     GENDER_COMPAT,
     DEFAULT_TOP_N,
 )
-from src.ratings_store import (
-    get_all_stats,
-    get_all_review_stats,
+from src.scoring_utils import (
     compute_confidence,
     compute_trust,
     _DEFAULT_AVG,
@@ -269,14 +267,14 @@ def recommend(
     min_d = df_scored["final_score"].min()
     df_scored["base_score"] = 1.0 - ((df_scored["final_score"] - min_d) / (max_d - min_d + 1e-9))
 
-    # 2. Merge in REAL user ratings from ratings_store (or external db_stats)
+    # 2. Merge in REAL user ratings from db_stats (aggregated by Express/Prisma)
     # NOTE: JSON keys arrive as strings; normalize to int so lookups always work
     def _normalize_keys(d: dict) -> dict:
         if d is None:
             return {}
         return {int(k): v for k, v in d.items()}
 
-    raw_stats = db_stats if db_stats is not None else get_all_stats()
+    raw_stats = db_stats if db_stats is not None else {}
     all_stats = _normalize_keys(raw_stats)
 
     def _get_avg(pg_id):
@@ -295,7 +293,7 @@ def recommend(
     #      0.5 = neutral (default when no reviews)
     #      1.0 = very positive reviews
     #
-    raw_review_stats = review_stats if review_stats is not None else get_all_review_stats()
+    raw_review_stats = review_stats if review_stats is not None else {}
     all_review_stats = _normalize_keys(raw_review_stats)
 
     def _get_sentiment(pg_id):
