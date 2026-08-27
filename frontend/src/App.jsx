@@ -1,14 +1,17 @@
 import { useState } from 'react';
 import api from './api';
+import { useAuth } from './context/AuthContext';
 import Hero from './components/Hero';
 import PreferenceForm from './components/PreferenceForm';
 import UserSummary from './components/UserSummary';
 import StatsBar from './components/StatsBar';
 import EmptyState from './components/EmptyState';
 import PGCard from './components/PGCard';
+import AuthModal from './components/AuthModal';
 import './App.css';
 
 export default function App() {
+  const { user, logout, openModal } = useAuth();
   const [results, setResults] = useState(null);
   const [userPrefs, setUserPrefs] = useState(null);
   const [error, setError] = useState('');
@@ -49,6 +52,17 @@ export default function App() {
       <div className="blob blob-3" />
 
       <div className="page-wrap">
+        <div className="auth-bar">
+          {user ? (
+            <div className="auth-user-chip">
+              👋 {user.name}
+              <button className="auth-logout-btn" onClick={logout}>Log out</button>
+            </div>
+          ) : (
+            <button className="auth-login-btn" onClick={() => openModal('login')}>Log In / Sign Up</button>
+          )}
+        </div>
+
         <Hero />
 
         <PreferenceForm onSubmit={handleSubmit} loading={loading} />
@@ -80,6 +94,8 @@ export default function App() {
           PG Finder · Bangalore North · Built with ❤️ for smarter house-hunting
         </footer>
       </div>
+
+      <AuthModal />
     </>
   );
 }

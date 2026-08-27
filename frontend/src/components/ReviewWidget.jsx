@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import api from '../api';
+import { useAuth } from '../context/AuthContext';
 
 /* ── Client-side sentiment preview (mirrors server logic) ── */
 const POS_WORDS = [
@@ -65,6 +66,7 @@ function reviewSentimentLabel(score) {
 }
 
 export default function ReviewWidget({ pgId, initialAvgSentiment, initialReviewCount, initialReviews }) {
+  const { requireAuth } = useAuth();
   const [open, setOpen] = useState(false);
   const [reviewText, setReviewText] = useState('');
   const [preview, setPreview] = useState(null);
@@ -95,6 +97,7 @@ export default function ReviewWidget({ pgId, initialAvgSentiment, initialReviewC
   }, []);
 
   const handleSubmit = async () => {
+    if (!requireAuth()) return;
     const text = reviewText.trim();
     if (!text) {
       setToast('Please write a review first!');
@@ -120,8 +123,12 @@ export default function ReviewWidget({ pgId, initialAvgSentiment, initialReviewC
         setAvgSentiment(data.avg_sentiment);
         setReviews(data.reviews || []);
       }
-    } catch {
-      setToast('Network error. Please try again.');
+    } catch (err) {
+      if (err.response?.status === 401) {
+        setToast('Your session expired. Please log in again.');
+      } else {
+        setToast('Network error. Please try again.');
+      }
       setToastError(true);
     } finally {
       setSubmitting(false);

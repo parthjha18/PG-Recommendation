@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import api from '../api';
+import { useAuth } from '../context/AuthContext';
 
 export default function RatingWidget({ pgId, averageRating, ratingCount, onUpdate }) {
+  const { requireAuth } = useAuth();
   const [selected, setSelected] = useState(0);
   const [hovered, setHovered] = useState(0);
   const [toast, setToast] = useState('');
@@ -9,6 +11,7 @@ export default function RatingWidget({ pgId, averageRating, ratingCount, onUpdat
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async () => {
+    if (!requireAuth()) return;
     if (!selected) {
       setToast('Please select a star rating first!');
       setToastError(true);
@@ -24,8 +27,12 @@ export default function RatingWidget({ pgId, averageRating, ratingCount, onUpdat
         setSelected(0);
         if (onUpdate) onUpdate(data.average_rating, data.rating_count);
       }
-    } catch {
-      setToast('Network error. Please try again.');
+    } catch (err) {
+      if (err.response?.status === 401) {
+        setToast('Your session expired. Please log in again.');
+      } else {
+        setToast('Network error. Please try again.');
+      }
       setToastError(true);
     } finally {
       setSubmitting(false);

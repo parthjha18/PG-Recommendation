@@ -5,6 +5,17 @@ import { PrismaClient } from './generated/prisma/client.ts';
 import { PrismaPg } from '@prisma/adapter-pg';
 import pg from 'pg';
 import axios from 'axios';
+import {
+  hashPassword,
+  comparePassword,
+  signToken,
+  requireAuth,
+  generateOtp,
+  hashOtp,
+  compareOtp,
+  otpExpiryDate,
+} from './auth.js';
+import { sendOtpEmail } from './mailer.js';
 
 const app = express();
 
@@ -61,6 +72,219 @@ async function getDbStats() {
   return { ratings, reviews };
 }
 
+// ── POST /api/auth/register ── (creates an unverified account, emails an OTP)
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { email, password, name } = req.body;
+
+    if (!email || !password || !name) {
+      return res.status(400).json({ error: 'email, password, and name are required.' });
+    }
+    if (password.length < 6) {
+      return res.status(422).json({ error: 'Password must be at least 6 characters.' });
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+    const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+    if (existing && existing.email_verified) {
+      return res.status(409).json({ error: 'An account with this email already exists.' });
+    }
+
+    const password_hash = await hashPassword(password);
+    const otp = generateOtp();
+    const otp_hash = await hashOtp(otp);
+
+    const user = existing
+      ? await prisma.user.update({
+          where: { id: existing.id },
+          data: { password_hash, name: name.trim(), otp_hash, otp_purpose: 'verify', otp_expires_at: otpExpiryDate() },
+        })
+      : await prisma.user.create({
+          data: {
+            email: normalizedEmail,
+            password_hash,
+            name: name.trim(),
+            otp_hash,
+            otp_purpose: 'verify',
+            otp_expires_at: otpExpiryDate(),
+          },
+        });
+
+    await sendOtpEmail(user.email, otp, 'verify');
+
+    return res.status(201).json({
+      success: true,
+      pendingVerification: true,
+      email: user.email,
+      message: 'We emailed you a 6-digit code. Enter it to finish creating your account.',
+    });
+  } catch (err) {
+    console.error('POST /api/auth/register error:', err.message);
+    return res.status(500).json({ error: 'Failed to register. Please try again.' });
+  }
+});
+
+// ── POST /api/auth/verify-email ── (confirms the signup OTP, then logs the user in)
+app.post('/api/auth/verify-email', async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp) {
+      return res.status(400).json({ error: 'email and otp are required.' });
+    }
+
+    const user = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } });
+    if (!user || !user.otp_hash || user.otp_purpose !== 'verify') {
+      return res.status(400).json({ error: 'No pending verification for this email.' });
+    }
+    if (new Date() > user.otp_expires_at) {
+      return res.status(400).json({ error: 'Code expired. Please request a new one.' });
+    }
+    if (!(await compareOtp(otp, user.otp_hash))) {
+      return res.status(400).json({ error: 'Incorrect code.' });
+    }
+
+    const verified = await prisma.user.update({
+      where: { id: user.id },
+      data: { email_verified: true, otp_hash: null, otp_purpose: null, otp_expires_at: null },
+    });
+
+    const token = signToken(verified);
+    return res.json({
+      success: true,
+      token,
+      user: { id: verified.id, email: verified.email, name: verified.name },
+    });
+  } catch (err) {
+    console.error('POST /api/auth/verify-email error:', err.message);
+    return res.status(500).json({ error: 'Failed to verify email.' });
+  }
+});
+
+// ── POST /api/auth/resend-otp ── (re-sends the signup verification code)
+app.post('/api/auth/resend-otp', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'email is required.' });
+
+    const user = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } });
+    if (!user || user.email_verified) {
+      return res.status(400).json({ error: 'No pending verification for this email.' });
+    }
+
+    const otp = generateOtp();
+    const otp_hash = await hashOtp(otp);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { otp_hash, otp_purpose: 'verify', otp_expires_at: otpExpiryDate() },
+    });
+    await sendOtpEmail(user.email, otp, 'verify');
+
+    return res.json({ success: true, message: 'A new code has been sent.' });
+  } catch (err) {
+    console.error('POST /api/auth/resend-otp error:', err.message);
+    return res.status(500).json({ error: 'Failed to resend code.' });
+  }
+});
+
+// ── POST /api/auth/login ──
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: 'email and password are required.' });
+    }
+
+    const user = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } });
+    if (!user || !(await comparePassword(password, user.password_hash))) {
+      return res.status(401).json({ error: 'Invalid email or password.' });
+    }
+    if (!user.email_verified) {
+      return res.status(403).json({ error: 'Please verify your email first.', pendingVerification: true, email: user.email });
+    }
+
+    const token = signToken(user);
+    return res.json({
+      success: true,
+      token,
+      user: { id: user.id, email: user.email, name: user.name },
+    });
+  } catch (err) {
+    console.error('POST /api/auth/login error:', err.message);
+    return res.status(500).json({ error: 'Failed to log in.' });
+  }
+});
+
+// ── POST /api/auth/forgot-password ── (emails a reset OTP)
+app.post('/api/auth/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'email is required.' });
+
+    const user = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } });
+    // Always respond success (don't leak whether an email is registered)
+    if (user && user.email_verified) {
+      const otp = generateOtp();
+      const otp_hash = await hashOtp(otp);
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { otp_hash, otp_purpose: 'reset', otp_expires_at: otpExpiryDate() },
+      });
+      await sendOtpEmail(user.email, otp, 'reset');
+    }
+
+    return res.json({ success: true, message: 'If that email is registered, a reset code has been sent.' });
+  } catch (err) {
+    console.error('POST /api/auth/forgot-password error:', err.message);
+    return res.status(500).json({ error: 'Failed to send reset code.' });
+  }
+});
+
+// ── POST /api/auth/reset-password ── (verifies the reset OTP and sets a new password)
+app.post('/api/auth/reset-password', async (req, res) => {
+  try {
+    const { email, otp, new_password } = req.body;
+    if (!email || !otp || !new_password) {
+      return res.status(400).json({ error: 'email, otp, and new_password are required.' });
+    }
+    if (new_password.length < 6) {
+      return res.status(422).json({ error: 'Password must be at least 6 characters.' });
+    }
+
+    const user = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } });
+    if (!user || !user.otp_hash || user.otp_purpose !== 'reset') {
+      return res.status(400).json({ error: 'No pending password reset for this email.' });
+    }
+    if (new Date() > user.otp_expires_at) {
+      return res.status(400).json({ error: 'Code expired. Please request a new one.' });
+    }
+    if (!(await compareOtp(otp, user.otp_hash))) {
+      return res.status(400).json({ error: 'Incorrect code.' });
+    }
+
+    const password_hash = await hashPassword(new_password);
+    const updated = await prisma.user.update({
+      where: { id: user.id },
+      data: { password_hash, otp_hash: null, otp_purpose: null, otp_expires_at: null },
+    });
+
+    const token = signToken(updated);
+    return res.json({
+      success: true,
+      token,
+      user: { id: updated.id, email: updated.email, name: updated.name },
+    });
+  } catch (err) {
+    console.error('POST /api/auth/reset-password error:', err.message);
+    return res.status(500).json({ error: 'Failed to reset password.' });
+  }
+});
+
+// ── GET /api/auth/me ── (validate an existing token on app load)
+app.get('/api/auth/me', requireAuth, (req, res) => {
+  res.json({ success: true, user: { id: req.user.id, email: req.user.email, name: req.user.name } });
+});
+
 // ── POST /api/recommendations ──
 app.post('/api/recommendations', async (req, res) => {
   try {
@@ -92,7 +316,7 @@ app.post('/api/recommendations', async (req, res) => {
 });
 
 // ── POST /api/rate-pg ──
-app.post('/api/rate-pg', async (req, res) => {
+app.post('/api/rate-pg', requireAuth, async (req, res) => {
   try {
     const { pg_id, rating } = req.body;
 
@@ -103,9 +327,11 @@ app.post('/api/rate-pg', async (req, res) => {
       return res.status(422).json({ error: 'Rating must be between 1 and 5' });
     }
 
-    // Save rating
-    await prisma.rating.create({
-      data: { pg_id: Number(pg_id), rating: Number(rating) },
+    // One rating per user per PG — resubmitting updates their existing rating
+    await prisma.rating.upsert({
+      where: { pg_id_user_id: { pg_id: Number(pg_id), user_id: req.user.id } },
+      update: { rating: Number(rating) },
+      create: { pg_id: Number(pg_id), rating: Number(rating), user_id: req.user.id },
     });
 
     // Fetch updated stats
@@ -128,7 +354,7 @@ app.post('/api/rate-pg', async (req, res) => {
 });
 
 // ── POST /api/submit-review ──
-app.post('/api/submit-review', async (req, res) => {
+app.post('/api/submit-review', requireAuth, async (req, res) => {
   try {
     const { pg_id, review_text } = req.body;
 
@@ -142,12 +368,15 @@ app.post('/api/submit-review', async (req, res) => {
     });
     const { sentiment_score } = mlResponse.data;
 
-    // Save review
-    await prisma.review.create({
-      data: {
+    // One review per user per PG — resubmitting updates their existing review
+    await prisma.review.upsert({
+      where: { pg_id_user_id: { pg_id: Number(pg_id), user_id: req.user.id } },
+      update: { review_text: review_text.trim(), sentiment_score },
+      create: {
         pg_id: Number(pg_id),
         review_text: review_text.trim(),
         sentiment_score,
+        user_id: req.user.id,
       },
     });
 
