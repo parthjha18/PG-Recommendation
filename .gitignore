@@ -4,3 +4,4 @@ __pycache__/
 .commandcode/
 node_modules/
 dist/
+.claude/
