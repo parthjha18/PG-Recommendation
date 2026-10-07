@@ -529,6 +529,24 @@ input[type="range"]::-webkit-slider-thumb {
 }
 .user-summary strong { color: var(--text); }
 
+/* ── COMMUTE BANNER ── */
+.commute-banner {
+  background: rgba(6,214,160,0.08);
+  border: 1px solid rgba(6,214,160,0.3);
+  color: var(--teal);
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-size: 13px;
+  margin-bottom: 16px;
+  animation: fadeUp .4s ease both;
+}
+.commute-banner strong { color: var(--text); }
+.commute-banner.warn {
+  background: rgba(255,209,102,0.08);
+  border-color: rgba(255,209,102,0.3);
+  color: var(--accent2);
+}
+
 /* ── WHAT-IF PANEL ── */
 .whatif-panel {
   margin: 40px 0;

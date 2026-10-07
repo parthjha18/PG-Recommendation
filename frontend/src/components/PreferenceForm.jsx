@@ -55,6 +55,17 @@ export default function PreferenceForm({ budget, form, onBudgetChange, onFieldCh
           </div>
 
           <div className="field">
+            <label>Commute to (optional)</label>
+            <input
+              type="text"
+              name="destination"
+              placeholder="e.g. MSRIT, Manyata Tech Park…"
+              value={form.destination}
+              onChange={handleChange}
+            />
+          </div>
+
+          <div className="field">
             <label>Gender Preference</label>
             <select name="gender" value={form.gender} onChange={handleChange}>
               <option value="0">👨 Boys Only</option>

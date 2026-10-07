@@ -78,10 +78,20 @@ export default function PGCard({ pg }) {
           <span className="d-label">🌙 Curfew</span>
           <span className="d-val">{CURFEW_MAP[pg.Curfew_Time] || '—'}</span>
         </div>
-        <div className="detail-item">
-          <span className="d-label">📅 Available Soon</span>
-          <span className="d-val">{pg.available_soon ? '✅ Yes' : '🕐 Not yet'}</span>
-        </div>
+        {pg.commute_duration_min != null ? (
+          <div className="detail-item" title={pg.commute_method === 'estimate' ? 'Estimated — live routing was unavailable' : 'Real driving time via OSRM'}>
+            <span className="d-label">🚗 Commute</span>
+            <span className="d-val">
+              {pg.commute_method === 'estimate' ? '~' : ''}{pg.commute_duration_min} min
+              <span style={{ color: 'var(--muted)', fontWeight: 400 }}> ({pg.commute_distance_km} km)</span>
+            </span>
+          </div>
+        ) : (
+          <div className="detail-item">
+            <span className="d-label">📅 Available Soon</span>
+            <span className="d-val">{pg.available_soon ? '✅ Yes' : '🕐 Not yet'}</span>
+          </div>
+        )}
       </div>
 
       <div className="amenity-row">

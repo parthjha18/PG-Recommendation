@@ -13,6 +13,7 @@ import './App.css';
 
 const DEFAULT_FORM = {
   location: '',
+  destination: '',
   gender: '2',
   sharing: 'Any',
   meals: '2',
@@ -29,6 +30,7 @@ function toPayload(budget, form) {
   return {
     budget: Number(budget),
     location: form.location,
+    destination: form.destination,
     gender: Number(form.gender),
     sharing: form.sharing,
     meals: Number(form.meals),
@@ -48,6 +50,8 @@ export default function App() {
   const [results, setResults] = useState(null);
   const [userPrefs, setUserPrefs] = useState(null);
   const [whatIf, setWhatIf] = useState(null);
+  const [destinationInfo, setDestinationInfo] = useState(null);
+  const [commuteError, setCommuteError] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -59,12 +63,16 @@ export default function App() {
     setError('');
     setResults(null);
     setWhatIf(null);
+    setDestinationInfo(null);
+    setCommuteError('');
     setUserPrefs(formData);
     setSubmitted(true);
 
     try {
       const { data } = await api.post('/recommendations', formData);
       setWhatIf(data.what_if || null);
+      setDestinationInfo(data.destination || null);
+      setCommuteError(data.commute_error || '');
       if (data.error) {
         setError(data.error);
         setResults(null);
@@ -142,6 +150,16 @@ export default function App() {
         />
 
         {results && results.length > 0 && <UserSummary user={userPrefs} />}
+
+        {destinationInfo && results && results.length > 0 && (
+          <div className="commute-banner">
+            🚗 Ranked by real commute time to <strong>{destinationInfo.display_name.split(',')[0]}</strong>
+          </div>
+        )}
+
+        {commuteError && (
+          <div className="commute-banner warn">⚠️ {commuteError}</div>
+        )}
 
         {results && results.length > 0 && <StatsBar results={results} />}
 
