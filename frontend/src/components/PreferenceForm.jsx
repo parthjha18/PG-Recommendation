@@ -1,41 +1,15 @@
-import { useState } from 'react';
-
 const LOCATIONS = [
   'Hebbal', 'Yelahanka', 'Kalyan Nagar', 'Hennur',
   'Thanisandra', 'Kogilu', 'Jakkur', 'RT Nagar',
 ];
 
-export default function PreferenceForm({ onSubmit, loading }) {
-  const [budget, setBudget] = useState(15000);
-  const [form, setForm] = useState({
-    location: '',
-    gender: '2',
-    sharing: 'Any',
-    meals: '2',
-    wifi: false,
-    ac: false,
-    laundry: false,
-    food: false,
-  });
-
+// Fully controlled: App.jsx owns { budget, form } so a "Try this →" click on
+// a what-if suggestion can update the visible controls and submit in the
+// same event handler, instead of needing an effect to react to a prop change.
+export default function PreferenceForm({ budget, form, onBudgetChange, onFieldChange, onSubmit, loading }) {
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setForm((prev) => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSubmit({
-      budget: Number(budget),
-      location: form.location,
-      gender: Number(form.gender),
-      sharing: form.sharing,
-      meals: Number(form.meals),
-      wifi: form.wifi ? 1 : 0,
-      ac: form.ac ? 1 : 0,
-      laundry: form.laundry ? 1 : 0,
-      food: form.food ? 1 : 0,
-    });
+    onFieldChange(name, type === 'checkbox' ? checked : value);
   };
 
   const formatInr = (val) => {
@@ -44,7 +18,7 @@ export default function PreferenceForm({ onSubmit, loading }) {
 
   return (
     <div className="form-card">
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={onSubmit}>
         <div className="form-grid">
           <div className="section-label">Budget &amp; Location</div>
 
@@ -57,7 +31,7 @@ export default function PreferenceForm({ onSubmit, loading }) {
                 max="20000"
                 step="500"
                 value={budget}
-                onChange={(e) => setBudget(Number(e.target.value))}
+                onChange={(e) => onBudgetChange(Number(e.target.value))}
               />
               <span className="budget-display">{formatInr(budget)}</span>
             </div>
