@@ -153,3 +153,31 @@ def normalize_user_meals(meals: int) -> float:
     Formula: (x - 2) / (3 - 2) = x - 2
     """
     return float(max(0.0, min(1.0, (meals - 2) / 1.0)))
+
+
+def build_user_normalized(user: dict) -> dict:
+    """
+    Convert a raw user preference dict (as received by the API) into the
+    normalized feature dict that score_pgs() expects.
+
+    This is the single source of truth for that mapping — both the live
+    /recommend endpoint and the "what-if" counterfactual engine
+    (src/whatif.py) call it, so a what-if simulation always sees exactly the
+    same normalization the real request used.
+
+    Note the asymmetry with meals: Meals_Per_Day is always scored (every
+    user has *some* meal preference), but the amenity flags are only added
+    when the user actually asked for them — an unchecked box means "no
+    preference", not "must not have it", so it's left out of the distance
+    calculation entirely rather than compared against 0.
+    """
+    normalized = {"Meals_Per_Day": normalize_user_meals(user.get("meals", 2))}
+    if user.get("wifi"):
+        normalized["WiFi"] = 1
+    if user.get("ac"):
+        normalized["AC"] = 1
+    if user.get("laundry"):
+        normalized["Laundry"] = 1
+    if user.get("food"):
+        normalized["Weekend_Food"] = 1
+    return normalized

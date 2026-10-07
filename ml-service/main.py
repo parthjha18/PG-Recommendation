@@ -18,9 +18,10 @@ from pydantic import BaseModel
 from typing import Optional
 
 from src.data_loader import load_raw_data
-from src.preprocessor import preprocess, normalize_user_meals
+from src.preprocessor import preprocess, build_user_normalized
 from src.recommender import recommend
 from src.explainer import add_explanations
+from src.whatif import generate_whatifs
 from src.sentiment_analyzer import analyze as analyze_sentiment, sentiment_label
 
 app = FastAPI(title="PG Recommendation ML Service")
@@ -56,15 +57,7 @@ async def recommend_endpoint(req: RecommendRequest):
     user = req.user_preferences
 
     # Normalize user input
-    user_normalized = {"Meals_Per_Day": normalize_user_meals(user.get("meals", 2))}
-    if user.get("wifi"):
-        user_normalized["WiFi"] = 1
-    if user.get("ac"):
-        user_normalized["AC"] = 1
-    if user.get("laundry"):
-        user_normalized["Laundry"] = 1
-    if user.get("food"):
-        user_normalized["Weekend_Food"] = 1
+    user_normalized = build_user_normalized(user)
 
     # Parse db_stats
     db_stats_in = None
@@ -84,8 +77,13 @@ async def recommend_endpoint(req: RecommendRequest):
         review_stats=review_stats_in,
     )
 
+    # "What if…" counterfactual suggestions — computed from the SAME baseline
+    # result (before add_explanations reshapes it) so the comparisons inside
+    # generate_whatifs are apples-to-apples with what the user just searched.
+    what_if = generate_whatifs(df, user, result, db_stats_in, review_stats_in)
+
     if isinstance(result, str):
-        return {"error": result, "results": []}
+        return {"error": result, "results": [], "what_if": what_if}
 
     # Attach explanations and badges
     result = add_explanations(result, user)
@@ -93,7 +91,7 @@ async def recommend_endpoint(req: RecommendRequest):
     records = result.to_dict(orient="records")
     # Convert numpy types to native Python for JSON serialization
     cleaned = _clean_records(records)
-    return {"results": cleaned, "error": None}
+    return {"results": cleaned, "error": None, "what_if": what_if}
 
 
 @app.post("/analyze-sentiment")
