@@ -20,6 +20,8 @@ Shape of the conversion
     reported in the returned warnings.
 """
 
+import json
+import os
 import re
 import time
 from urllib.parse import unquote
@@ -327,3 +329,56 @@ def build_real_dataset(responses: pd.DataFrame, dayfirst: bool = True,
             warnings.append(f"{int(dup.sum())} duplicate PG/sharing row(s) dropped (kept the latest submission).")
         out = out[~dup].reset_index(drop=True)
     return out, warnings
+
+
+# ─────────────────────────────────────────────────────────────
+# LOOKUP CACHE
+# ─────────────────────────────────────────────────────────────
+
+class CachedLocator:
+    """
+    Remembers successful coordinate / locality lookups on disk, so re-importing
+    the sheet only geocodes responses that are NEW. Failed lookups are never
+    cached (they may be a temporary network problem), and a PG whose Maps link
+    or address is edited gets a fresh lookup because the cache key changes.
+    """
+
+    def __init__(self, path=None, resolver=resolve_location, locality_lookup=reverse_locality):
+        self.path = path
+        self._resolver = resolver
+        self._locality = locality_lookup
+        self.lookups = 0          # network lookups actually performed (for tests / logging)
+        self._data = {"loc": {}, "locality": {}}
+        if path and os.path.exists(path):
+            try:
+                with open(path, encoding="utf-8") as f:
+                    self._data.update(json.load(f))
+            except (OSError, ValueError):
+                pass              # unreadable cache == empty cache
+
+    def resolve(self, maps_url, address):
+        key = f"{(maps_url or '').strip()}||{(address or '').strip()}"
+        if key in self._data["loc"]:
+            return self._data["loc"][key]
+        self.lookups += 1
+        found = self._resolver(maps_url, address)
+        if found:
+            self._data["loc"][key] = found
+        return found
+
+    def locality(self, lat, lon):
+        key = f"{lat:.5f},{lon:.5f}"
+        if key in self._data["locality"]:
+            return self._data["locality"][key]
+        self.lookups += 1
+        name = self._locality(lat, lon)
+        if name and name != "other":
+            self._data["locality"][key] = name
+        return name
+
+    def save(self):
+        if not self.path:
+            return
+        os.makedirs(os.path.dirname(self.path), exist_ok=True)
+        with open(self.path, "w", encoding="utf-8") as f:
+            json.dump(self._data, f, indent=1)

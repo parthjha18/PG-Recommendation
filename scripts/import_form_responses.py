@@ -1,62 +1,50 @@
 """
 scripts/import_form_responses.py
 ────────────────────────────────
-Convert the exported Google Form responses CSV into data/raw/real_pgs.csv,
-the file the app loads as its "Real data" dataset.
+Build data/raw/real_pgs.csv (the app's "Real data") from the Google Form responses.
 
 Usage:
-    1. In the response sheet: File -> Download -> Comma-separated values (.csv)
-    2. Save it as  data/form_responses.csv
-    3. python scripts/import_form_responses.py
-    4. Restart the ML service so it picks up the new file
+    python scripts/import_form_responses.py                 # uses the configured source
+    python scripts/import_form_responses.py --input FILE_OR_URL
+    python scripts/import_form_responses.py --monthfirst    # export dates are MM/DD/YYYY
 
-Options:
-    --input  PATH     responses CSV   (default data/form_responses.csv)
-    --output PATH     dataset CSV     (default data/raw/real_pgs.csv)
-    --monthfirst      dates in the export are MM/DD/YYYY (default is DD/MM/YYYY)
+Source, in order: env FORM_RESPONSES_URL, first line of data/form_responses_url.txt
+(the sheet's "Publish to web -> CSV" link), or data/form_responses.csv (manual export).
+The app can also re-sync on demand from its "Refresh" button, so this script is
+only needed for a manual run.
 """
 
 import argparse
 import os
 import sys
 
-import pandas as pd
-
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 from config import REAL_DATA_PATH  # noqa: E402
-from src.form_import import build_real_dataset  # noqa: E402
+from src.form_sync import get_source, sync_real_data  # noqa: E402
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--input", default=os.path.join(ROOT, "data", "form_responses.csv"))
+    ap.add_argument("--input", help="CSV file path or published-CSV URL (default: configured source)")
     ap.add_argument("--output", default=REAL_DATA_PATH)
-    ap.add_argument("--monthfirst", action="store_true")
+    ap.add_argument("--monthfirst", action="store_true", help="dates in the export are MM/DD/YYYY")
     args = ap.parse_args()
 
-    if not os.path.exists(args.input):
-        sys.exit(f"Input file not found: {args.input}\n"
-                 "Download the response sheet as CSV and save it there first.")
+    source = args.input or get_source()
+    if not source:
+        sys.exit("No responses source found. Put the sheet's published-CSV link in "
+                 "data/form_responses_url.txt, or save an export as data/form_responses.csv.")
+    try:
+        result = sync_real_data(source, output=args.output, dayfirst=not args.monthfirst)
+    except Exception as exc:  # report cleanly instead of a traceback
+        sys.exit(f"Import failed: {exc}")
 
-    responses = pd.read_csv(args.input, dtype=str)
-    print(f"Read {len(responses)} form response(s) from {args.input}")
-
-    rows, warnings = build_real_dataset(responses, dayfirst=not args.monthfirst)
-
-    for w in warnings:
+    print(f"Read {result['responses']} form response(s) from {result['source']}")
+    for w in result["warnings"]:
         print("  ⚠️ ", w)
-    if rows.empty:
-        sys.exit("No usable rows produced; nothing written.")
-
-    os.makedirs(os.path.dirname(args.output), exist_ok=True)
-    rows.to_csv(args.output, index=False)
-
-    pgs = rows.groupby(["PG_Name", "Location"]).size().reset_index(name="rows")
-    print(f"\n✅ Wrote {len(rows)} dataset row(s) for {len(pgs)} PG(s) -> {args.output}")
-    for _, p in pgs.iterrows():
-        print(f"   • {p.PG_Name}  [{p.Location}]  {p.rows} sharing type(s)")
-    print("\nRestart the ML service to load the new data.")
+    print(f"\n✅ Wrote {result['rows']} dataset row(s) for {result['pgs']} PG(s) -> {args.output}")
+    print("Restart the ML service, or press Refresh in the app, to load it.")
 
 
 if __name__ == "__main__":

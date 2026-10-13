@@ -7,3 +7,5 @@ dist/
 .claude/
 # raw Google Form export (may contain free-text remarks); the processed data/raw/real_pgs.csv is tracked
 data/form_responses.csv
+data/form_responses_url.txt
+data/raw/location_cache.json
