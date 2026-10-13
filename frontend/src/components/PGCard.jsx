@@ -40,8 +40,11 @@ export default function PGCard({ pg }) {
         <div>
           {pg.Rank === 1 && <div className="best-badge">🔥 Best Match</div>}
           <div className="pg-name">
-            PG {pg.PG_ID || pg.Rank}
+            {pg.PG_Name || `PG ${pg.PG_ID || pg.Rank}`}
             {pg.Badge && <span className="pg-badge">{pg.Badge}</span>}
+            {pg.Source === 'form' && (
+              <span className="real-tag" title="Collected from a real resident via the Google Form">✅ Real listing</span>
+            )}
           </div>
           <div className="pg-location">
             <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24">

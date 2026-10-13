@@ -38,6 +38,19 @@ Geocoding and routing use free OpenStreetMap services (Nominatim + OSRM),
 with an automatic distance-based fallback if either is unreachable.
 See [`src/commute.py`](src/commute.py).
 
+**Real data alongside the demo data.** A Demo / Real toggle switches the whole
+app between the 1000 generated PGs and PGs collected from real residents through
+a Google Form ([`scripts/create_pg_form.gs`](scripts/create_pg_form.gs) builds the
+form). To load real PGs:
+
+1. Download the form's response sheet as CSV → save as `data/form_responses.csv`
+2. `python scripts/import_form_responses.py` (writes `data/raw/real_pgs.csv`)
+3. Restart the ML service
+
+Each PG becomes one row per sharing type, with coordinates read from its Google
+Maps link. Real PGs get IDs from 10001 up, so ratings/reviews never clash with the
+generated set. Tests: `python -m unittest discover -s tests -t .`
+
 ---
 
 ## 🗂 Dataset

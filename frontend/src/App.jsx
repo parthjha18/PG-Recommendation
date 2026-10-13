@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import api from './api';
 import { useAuth } from './context/AuthContext';
 import Hero from './components/Hero';
@@ -9,9 +9,11 @@ import EmptyState from './components/EmptyState';
 import PGCard from './components/PGCard';
 import AuthModal from './components/AuthModal';
 import WhatIfPanel from './components/WhatIfPanel';
+import DatasetToggle from './components/DatasetToggle';
 import './App.css';
 
 const DEFAULT_FORM = {
+  dataset: 'demo',
   location: '',
   destination: '',
   gender: '2',
@@ -29,6 +31,7 @@ const DEFAULT_FORM = {
 function toPayload(budget, form) {
   return {
     budget: Number(budget),
+    dataset: form.dataset,
     location: form.location,
     destination: form.destination,
     gender: Number(form.gender),
@@ -55,6 +58,14 @@ export default function App() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [datasetInfo, setDatasetInfo] = useState(null);
+
+  // What's loaded (demo / real, and how many PGs) for the toggle's labels.
+  useEffect(() => {
+    api.get('/datasets')
+      .then(({ data }) => setDatasetInfo(data))
+      .catch(() => setDatasetInfo(null));
+  }, []);
 
   const search = async (searchBudget, searchForm) => {
     const formData = toPayload(searchBudget, searchForm);
@@ -94,6 +105,18 @@ export default function App() {
   const handleFormSubmit = (e) => {
     e.preventDefault();
     search(budget, form);
+  };
+
+  // Switching data source re-runs the current search on the other dataset
+  // (so you can flip between Demo and Real and compare); before any search it
+  // just changes the selection.
+  const handleDatasetChange = (dataset) => {
+    if (dataset === form.dataset) return;
+    const newForm = { ...form, dataset };
+    setForm(newForm);
+    if (submitted) {
+      search(budget, newForm);
+    }
   };
 
   const handleFieldChange = (name, value) => {
@@ -139,6 +162,13 @@ export default function App() {
         </div>
 
         <Hero />
+
+        <DatasetToggle
+          value={form.dataset}
+          onChange={handleDatasetChange}
+          info={datasetInfo}
+          disabled={loading}
+        />
 
         <PreferenceForm
           budget={budget}

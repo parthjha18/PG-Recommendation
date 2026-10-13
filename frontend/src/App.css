@@ -529,6 +529,36 @@ input[type="range"]::-webkit-slider-thumb {
 }
 .user-summary strong { color: var(--text); }
 
+/* ── DATASET TOGGLE ── */
+.dataset-toggle {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin: 0 0 16px;
+}
+.dataset-toggle-label {
+  font-size: 11px; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .08em;
+  margin-right: 4px;
+}
+.dataset-opt {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--text); border-radius: 12px; padding: 8px 16px;
+  font-family: var(--font-body); font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: border-color .15s ease, background .15s ease;
+}
+.dataset-opt:hover:not(:disabled) { border-color: rgba(255,107,53,0.4); }
+.dataset-opt.active {
+  border-color: var(--accent); background: rgba(255,107,53,0.08);
+}
+.dataset-opt:disabled { opacity: .6; cursor: default; }
+.dataset-count { font-size: 11px; font-weight: 400; color: var(--muted); }
+.real-tag {
+  margin-left: 8px; font-size: 11px; font-weight: 600;
+  color: var(--teal); background: rgba(6,214,160,0.1);
+  border: 1px solid rgba(6,214,160,0.3);
+  border-radius: 999px; padding: 2px 8px; vertical-align: middle;
+}
+
 /* ── COMMUTE BANNER ── */
 .commute-banner {
   background: rgba(6,214,160,0.08);
