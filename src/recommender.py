@@ -23,6 +23,7 @@ from config import (
     LOCATION_FUZZY_THRESHOLD,
     GENDER_COMPAT,
     DEFAULT_TOP_N,
+    SMALL_DATASET_ROWS,
 )
 from src.scoring_utils import (
     compute_confidence,
@@ -377,7 +378,10 @@ def recommend(
         )
 
     # 6. Threshold-based filtering
-    threshold = 0.5
+    #    Skipped for tiny datasets (e.g. a handful of real PGs): normalized_score
+    #    is min-max within the pool, so the weakest PG always scores 0 and would
+    #    be cut no matter how good it actually is.
+    threshold = 0.5 if len(df) >= SMALL_DATASET_ROWS else 0.0
     df_thresholded = df_scored[df_scored["normalized_score"] >= threshold].copy()
 
     if df_thresholded.empty:

@@ -92,7 +92,15 @@ def preprocess(df: pd.DataFrame) -> tuple:
     df = _engineer_features(df)
 
     # ── Step 7: Scale numeric features ───────────────────────
-    df[SCALE_COLS] = _scaler.fit_transform(df[SCALE_COLS])
+    # Meals use a FIXED scale (2 meals -> 0.0, 3 meals -> 1.0), the same one
+    # normalize_user_meals() applies to the user's answer. Fitting it to the
+    # dataset's own min/max would break on small datasets: if every PG serves
+    # 3 meals, min == max and all of them would scale to 0, silently ignoring
+    # the user's meal preference. On the 1000-row dataset the result is
+    # identical to the old min/max fit (its values are exactly 2 and 3).
+    df["Meals_Per_Day"] = (df["Meals_Per_Day"] - 2.0).clip(0.0, 1.0)
+    min_max_cols = [c for c in SCALE_COLS if c != "Meals_Per_Day"]
+    df[min_max_cols] = _scaler.fit_transform(df[min_max_cols])
     _scaler_fitted = True
 
     return df, _scaler
