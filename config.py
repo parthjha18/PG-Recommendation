@@ -6,6 +6,8 @@ import os
 BASE_DIR        = os.path.dirname(os.path.abspath(__file__))
 DATA_RAW_PATH   = os.path.join(BASE_DIR, "data", "raw", "PG Dataset.csv")
 DATA_CACHE_PATH = os.path.join(BASE_DIR, "data", "processed", "pg_encoded.pkl")
+# Real PGs collected via the Google Form (built by scripts/import_form_responses.py)
+REAL_DATA_PATH  = os.path.join(BASE_DIR, "data", "raw", "real_pgs.csv")
 DATABASE_URL    = os.environ.get("DATABASE_URL", "postgresql://localhost/pg_recommendation")
 
 # ─────────────────────────────────────────────
@@ -80,3 +82,8 @@ GENDER_COMPAT = {
 # RECOMMENDATION
 # ─────────────────────────────────────────────
 DEFAULT_TOP_N = 5
+
+# Datasets smaller than this skip the "normalized_score >= 0.5" relevance cut in
+# recommend(): min-max normalising a handful of PGs always scores the weakest one
+# 0, which would silently hide valid results (real data is only a few PGs).
+SMALL_DATASET_ROWS = 50

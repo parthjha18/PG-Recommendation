@@ -15,7 +15,7 @@ from sqlalchemy import create_engine
 
 # Add project root to path so config can be imported from anywhere
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config import DATABASE_URL, REQUIRED_COLUMNS
+from config import DATABASE_URL, REQUIRED_COLUMNS, REAL_DATA_PATH
 
 
 def load_raw_data() -> pd.DataFrame:
@@ -49,6 +49,23 @@ def load_raw_data() -> pd.DataFrame:
     removed = original_len - len(df)
 
     print(f"✅  Loaded {len(df)} PG records  ({removed} duplicates removed)")
+    return df
+
+
+def load_real_data(path: str = REAL_DATA_PATH):
+    """
+    Load the real, form-collected PGs (see scripts/import_form_responses.py).
+
+    Returns the raw DataFrame, or None when no real data has been imported yet
+    (a normal state, not an error).
+    """
+    if not os.path.exists(path):
+        return None
+    df = pd.read_csv(path)
+    missing_cols = [col for col in REQUIRED_COLUMNS if col not in df.columns]
+    if missing_cols:
+        raise ValueError(f"{path} is missing required columns: {missing_cols}")
+    print(f"✅  Loaded {len(df)} REAL PG rows from {os.path.basename(path)}")
     return df
 
 

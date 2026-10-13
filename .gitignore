@@ -5,3 +5,5 @@ __pycache__/
 node_modules/
 dist/
 .claude/
+# raw Google Form export (may contain free-text remarks); the processed data/raw/real_pgs.csv is tracked
+data/form_responses.csv
