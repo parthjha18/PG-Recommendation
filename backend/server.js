@@ -476,6 +476,19 @@ app.get('/api/reviews/:pgId', async (req, res) => {
   }
 });
 
+// ── GET /api/datasets ──
+// Which datasets the ML service has loaded (demo / real) and how many PGs each,
+// so the UI can label its Demo/Real toggle honestly.
+app.get('/api/datasets', async (req, res) => {
+  try {
+    const mlResponse = await axios.get(`${ML_URL}/datasets`, { timeout: 5000 });
+    return res.json(mlResponse.data);
+  } catch (err) {
+    console.error('GET /api/datasets error:', err.message);
+    return res.status(503).json({ error: 'ML service is not available.' });
+  }
+});
+
 // ── Health check ──
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', service: 'express-gateway' });

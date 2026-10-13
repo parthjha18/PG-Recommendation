@@ -17,7 +17,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import Optional
 
-from src.data_loader import load_raw_data
+from src.data_loader import load_raw_data, load_real_data
 from src.preprocessor import preprocess, build_user_normalized
 from src.recommender import recommend
 from src.explainer import add_explanations
@@ -28,16 +28,35 @@ from config import DEFAULT_TOP_N
 
 app = FastAPI(title="PG Recommendation ML Service")
 
-# ── Load & preprocess dataset once at startup ──
-df = None
+# ── Load & preprocess datasets once at startup ──
+# "demo" = the 1000 generated PGs (Postgres). "real" = PGs collected through
+# the Google Form (data/raw/real_pgs.csv); None until that file is imported.
+datasets = {"demo": None, "real": None}
 
 
 @app.on_event("startup")
 async def startup():
-    global df
     raw = load_raw_data()
-    df, _ = preprocess(raw)
-    print(f"✅ ML Service: loaded {len(df)} preprocessed PG records")
+    datasets["demo"], _ = preprocess(raw)
+    print(f"✅ ML Service: loaded {len(datasets['demo'])} preprocessed demo PG records")
+
+    try:
+        real_raw = load_real_data()
+        if real_raw is not None and len(real_raw) > 0:
+            datasets["real"], _ = preprocess(real_raw)
+            print(f"✅ ML Service: loaded {len(datasets['real'])} preprocessed REAL PG rows")
+        else:
+            print("ℹ️  ML Service: no real PG data imported yet (data/raw/real_pgs.csv)")
+    except Exception as exc:  # a bad real-data file must not stop the demo from running
+        print(f"⚠️  ML Service: could not load real PG data: {exc}")
+
+
+def _pick_dataset(user: dict):
+    """Which dataset this search runs on: 'demo' (default) or 'real'."""
+    name = str(user.get("dataset") or "demo").lower()
+    if name not in datasets:
+        name = "demo"
+    return name, datasets[name]
 
 
 # ── Request schemas ──
@@ -53,10 +72,32 @@ class AnalyzeSentimentRequest(BaseModel):
 
 # ── Routes ──
 
+@app.get("/datasets")
+async def datasets_endpoint():
+    """What's loaded, so the UI can show honest counts next to the toggle."""
+    out = {}
+    for name, data in datasets.items():
+        if data is None:
+            out[name] = {"loaded": False, "rows": 0, "pgs": 0}
+        else:
+            pgs = int(data["PG_Name"].nunique()) if "PG_Name" in data.columns else len(data)
+            out[name] = {"loaded": True, "rows": len(data), "pgs": pgs}
+    return out
+
+
 @app.post("/recommend")
 async def recommend_endpoint(req: RecommendRequest):
     """Run the full recommendation pipeline with external db_stats."""
     user = req.user_preferences
+
+    dataset_name, df = _pick_dataset(user)
+    if df is None:
+        return {
+            "error": "No real PG data has been imported yet. Import the form responses "
+                     "(scripts/import_form_responses.py), restart the ML service, or switch to Demo data.",
+            "results": [], "what_if": [], "destination": None, "commute_error": None,
+            "dataset": dataset_name,
+        }
 
     # Normalize user input
     user_normalized = build_user_normalized(user)
@@ -108,7 +149,7 @@ async def recommend_endpoint(req: RecommendRequest):
     if isinstance(result, str):
         return {
             "error": result, "results": [], "what_if": what_if,
-            "destination": None, "commute_error": commute_error,
+            "destination": None, "commute_error": commute_error, "dataset": dataset_name,
         }
 
     if destination_geo is not None:
@@ -134,6 +175,7 @@ async def recommend_endpoint(req: RecommendRequest):
     return {
         "results": cleaned, "error": None, "what_if": what_if,
         "destination": destination_out, "commute_error": commute_error,
+        "dataset": dataset_name,
     }
 
 
