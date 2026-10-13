@@ -551,6 +551,16 @@ input[type="range"]::-webkit-slider-thumb {
   border-color: var(--accent); background: rgba(255,107,53,0.08);
 }
 .dataset-opt:disabled { opacity: .6; cursor: default; }
+.dataset-refresh {
+  background: transparent; border: 1px solid var(--accent); color: var(--accent);
+  border-radius: 10px; padding: 8px 14px; font-size: 13px; font-weight: 600;
+  font-family: var(--font-body); cursor: pointer;
+  transition: background .15s ease, color .15s ease;
+}
+.dataset-refresh:hover:not(:disabled) { background: var(--accent); color: #fff; }
+.dataset-refresh:disabled { opacity: .6; cursor: default; }
+.dataset-note { font-size: 12px; color: var(--teal); }
+.dataset-note.error { color: var(--accent2); }
 .dataset-count { font-size: 11px; font-weight: 400; color: var(--muted); }
 .real-tag {
   margin-left: 8px; font-size: 11px; font-weight: 600;

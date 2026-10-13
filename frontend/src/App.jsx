@@ -59,6 +59,8 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [datasetInfo, setDatasetInfo] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshNote, setRefreshNote] = useState(null);
 
   // What's loaded (demo / real, and how many PGs) for the toggle's labels.
   useEffect(() => {
@@ -119,6 +121,28 @@ export default function App() {
     }
   };
 
+  // Pull the latest Google Form responses into the real dataset, then (if the
+  // user is looking at real data) re-run the current search so new PGs show up.
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    setRefreshNote(null);
+    try {
+      const { data } = await api.post('/datasets/refresh');
+      setDatasetInfo(data.datasets);
+      const { pgs, warnings } = data.sync;
+      setRefreshNote({
+        text: `Updated: ${pgs} real PG${pgs === 1 ? '' : 's'}${warnings.length ? ` (${warnings.length} warning${warnings.length === 1 ? '' : 's'})` : ''}`,
+      });
+      if (form.dataset === 'real' && submitted) {
+        search(budget, form);
+      }
+    } catch (err) {
+      setRefreshNote({ error: true, text: err.response?.data?.error || 'Refresh failed.' });
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   const handleFieldChange = (name, value) => {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
@@ -168,6 +192,9 @@ export default function App() {
           onChange={handleDatasetChange}
           info={datasetInfo}
           disabled={loading}
+          onRefresh={handleRefresh}
+          refreshing={refreshing}
+          refreshNote={refreshNote}
         />
 
         <PreferenceForm

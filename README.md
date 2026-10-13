@@ -41,14 +41,23 @@ See [`src/commute.py`](src/commute.py).
 **Real data alongside the demo data.** A Demo / Real toggle switches the whole
 app between the 1000 generated PGs and PGs collected from real residents through
 a Google Form ([`scripts/create_pg_form.gs`](scripts/create_pg_form.gs) builds the
-form). To load real PGs:
+form). The app pulls the latest responses straight from the sheet, so there is
+no CSV to download and re-send each time a friend submits. One-time setup:
 
-1. Download the form's response sheet as CSV → save as `data/form_responses.csv`
-2. `python scripts/import_form_responses.py` (writes `data/raw/real_pgs.csv`)
-3. Restart the ML service
+1. In the response sheet: **File → Share → Publish to web** → choose the
+   *Form Responses* tab and **CSV** → Publish, and copy the link.
+2. Save that link as the first line of `data/form_responses_url.txt`
+   (git-ignored; or set the `FORM_RESPONSES_URL` env var).
+3. Restart the ML service. It syncs on start-up.
+
+After that, press **↻ Refresh** next to the Demo/Real toggle to pull new
+responses without restarting (Google can take a few minutes to update a
+published sheet). If the sheet can't be reached, the app keeps the last saved
+real data. To import by hand instead: `python scripts/import_form_responses.py`
+(uses the link above, or a manual export saved as `data/form_responses.csv`).
 
 Each PG becomes one row per sharing type, with coordinates read from its Google
-Maps link. Real PGs get IDs from 10001 up, so ratings/reviews never clash with the
+Maps link (cached, so a refresh only looks up new PGs). Real PGs get IDs from 10001 up, so ratings/reviews never clash with the
 generated set. Tests: `python -m unittest discover -s tests -t .`
 
 ---
