@@ -13,7 +13,7 @@ import pandas as pd
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src.form_import import (  # noqa: E402
-    build_real_dataset, coords_from_text, parse_curfew, parse_rent, REAL_ID_BASE,
+    address_candidates_from_maps_url, build_real_dataset, choose_locality, coords_from_page, coords_from_text, locality_from_address, parse_curfew, parse_rent, REAL_ID_BASE,
 )
 
 FIXTURE = os.path.join(os.path.dirname(__file__), "fixtures", "form_responses_sample.csv")
@@ -32,6 +32,55 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(coords_from_text("https://x/data=!3d12.9697!4d77.7499"), (12.9697, 77.7499))
         self.assertIsNone(coords_from_text("https://maps.app.goo.gl/abc123"))
         self.assertIsNone(coords_from_text("https://www.google.com/maps?q=1.0,2.0"))   # not in India
+
+    def test_short_link_page_coordinates(self):
+        # exact pin in the final URL beats the (offset) viewport centre next to it
+        url = "https://www.google.com/maps/place/X/@12.9657,77.7097,17z/data=!4m6!3d12.9660!4d77.7123"
+        self.assertEqual(coords_from_page(url, [], ""), (12.9660, 77.7123))
+        # URL has no coordinates: a single pin in the page body is trusted
+        plain = "https://www.google.com/maps/place/SWEET+DREAMS+CO+LIVING"
+        self.assertEqual(coords_from_page(plain, [], "x !3d12.9601!4d77.7002 y"), (12.9601, 77.7002))
+        # ...but several different pins (related places) are not
+        self.assertIsNone(coords_from_page(plain, [], "!3d12.9601!4d77.7002 ... !3d12.9111!4d77.6222"))
+        # viewport centre in the URL is the last resort
+        self.assertEqual(coords_from_page("https://x/@12.90,77.70,17z", [], "nothing here"), (12.90, 77.70))
+        self.assertIsNone(coords_from_page(plain, [], "nothing here"))
+
+    def test_generic_page_map_centre_is_never_used(self):
+        # REGRESSION: Google puts the same default map centre in every place page's body
+        # (center=...%2C... / [null,null,lat,lng]); trusting it put six different PGs at one spot.
+        plain = "https://www.google.com/maps/place/SOME+PG,+Street,+Area"
+        body = 'og:image content="...staticmap?center=12.9628665%2C77.71255785&zoom=17" [null,null,12.9628665,77.71255785]'
+        self.assertIsNone(coords_from_page(plain, [], body))
+
+    def test_address_candidates_from_maps_urls(self):
+        place = ("https://www.google.com/maps/place/SWEET+DREAMS+CO+LIVING+STUDIO+ROOMS,+Brilliant+School+Rd,"
+                 "+Lakshminarayana+Pura,+AECS+Layout,+Marathahalli,+Bengaluru,+Karnataka+560037/data=!4m2")
+        c = address_candidates_from_maps_url(place)
+        self.assertTrue(c[0].startswith("SWEET DREAMS CO LIVING STUDIO ROOMS, Brilliant School Rd"))
+        self.assertTrue(c[1].startswith("Brilliant School Rd"))        # business name dropped in the next candidate
+        self.assertEqual(c[-1], "Marathahalli, Bengaluru, Karnataka 560037")   # coarsest: area + city + pin
+        daddr = "https://www.google.com/maps?geocode=AB%3D%3D&daddr=EVA+Co-living+pg,+Brilliant+School+Rd,+AECS+Layout,+Bengaluru"
+        self.assertEqual(address_candidates_from_maps_url(daddr)[1], "Brilliant School Rd, AECS Layout, Bengaluru")
+        self.assertEqual(address_candidates_from_maps_url("https://www.google.com/search?q=x"), [])
+        self.assertEqual(address_candidates_from_maps_url(""), [])
+
+    def test_locality_names_prefer_neighbourhoods_over_admin_labels(self):
+        # real Nominatim answers for PGs in the form responses
+        self.assertEqual(locality_from_address({"neighbourhood": "AECS Layout B Block", "suburb": "Priyadarshini Ward",
+                                                "quarter": "Brookefield", "city_district": "Bengaluru East City Corporation"}), "brookefield")
+        self.assertEqual(locality_from_address({"neighbourhood": "AECS Layout A Block", "suburb": "EPIP Zone",
+                                                "city_district": "Bengaluru East City Corporation"}), "aecs layout")
+        self.assertEqual(locality_from_address({"suburb": "Marathahalli", "city_district": "Bengaluru East City Corporation"}), "marathahalli")
+        self.assertEqual(locality_from_address({"suburb": "Priyadarshini Ward", "city_district": "Bengaluru East City Corporation"}), "priyadarshini ward")  # last resort
+        self.assertEqual(locality_from_address({}), "other")
+
+    def test_dropdown_area_is_trusted_only_when_near_the_coordinates(self):
+        lookup = lambda a, b: "brookefield"
+        self.assertEqual(choose_locality("Hebbal", 13.0382, 77.5919, lookup), "hebbal")            # near: use the dropdown
+        self.assertEqual(choose_locality("Kalyan Nagar", 12.9675, 77.7142, lookup), "brookefield")  # ~14 km away: distrust it
+        self.assertEqual(choose_locality("Other (not in this list)", 12.96, 77.71, lookup), "brookefield")
+        self.assertEqual(choose_locality("Kalyan Nagar", 12.9675, 77.7142, lambda a, b: "other"), "kalyan nagar")  # lookup failed: fall back
 
     def test_rent(self):
         self.assertEqual(parse_rent("₹10,000"), 10000)
