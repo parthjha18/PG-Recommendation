@@ -10,14 +10,17 @@ Endpoints:
 
 import sys
 import os
+import time
+import threading
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 
 from src.data_loader import load_raw_data, load_real_data
+from src.form_sync import get_source, is_live_source, sync_real_data
 from src.preprocessor import preprocess, build_user_normalized
 from src.recommender import recommend
 from src.explainer import add_explanations
@@ -34,19 +37,40 @@ app = FastAPI(title="PG Recommendation ML Service")
 datasets = {"demo": None, "real": None}
 
 
+REFRESH_MIN_INTERVAL_SECONDS = 10      # don't let a double-click hammer Google / the geocoder
+_refresh_lock = threading.Lock()
+_last_refresh = {"at": 0.0}
+
+
+def _load_real_into_memory():
+    """(Re)load data/raw/real_pgs.csv into datasets['real']; None if absent/empty."""
+    real_raw = load_real_data()
+    if real_raw is not None and len(real_raw) > 0:
+        datasets["real"], _ = preprocess(real_raw)
+        print(f"✅ ML Service: loaded {len(datasets['real'])} preprocessed REAL PG rows")
+    else:
+        datasets["real"] = None
+        print("ℹ️  ML Service: no real PG data imported yet (data/raw/real_pgs.csv)")
+
+
 @app.on_event("startup")
 async def startup():
     raw = load_raw_data()
     datasets["demo"], _ = preprocess(raw)
     print(f"✅ ML Service: loaded {len(datasets['demo'])} preprocessed demo PG records")
 
+    # If a live responses link is configured, pull the latest before loading;
+    # on any failure fall back to whatever real_pgs.csv was last written.
+    source = get_source()
+    if is_live_source(source):
+        try:
+            result = sync_real_data(source)
+            print(f"✅ ML Service: synced {result['pgs']} real PG(s) from the live form responses")
+        except Exception as exc:
+            print(f"⚠️  ML Service: live sync failed ({exc}); using the last saved real data")
+
     try:
-        real_raw = load_real_data()
-        if real_raw is not None and len(real_raw) > 0:
-            datasets["real"], _ = preprocess(real_raw)
-            print(f"✅ ML Service: loaded {len(datasets['real'])} preprocessed REAL PG rows")
-        else:
-            print("ℹ️  ML Service: no real PG data imported yet (data/raw/real_pgs.csv)")
+        _load_real_into_memory()
     except Exception as exc:  # a bad real-data file must not stop the demo from running
         print(f"⚠️  ML Service: could not load real PG data: {exc}")
 
@@ -72,9 +96,7 @@ class AnalyzeSentimentRequest(BaseModel):
 
 # ── Routes ──
 
-@app.get("/datasets")
-async def datasets_endpoint():
-    """What's loaded, so the UI can show honest counts next to the toggle."""
+def _datasets_info() -> dict:
     out = {}
     for name, data in datasets.items():
         if data is None:
@@ -82,7 +104,45 @@ async def datasets_endpoint():
         else:
             pgs = int(data["PG_Name"].nunique()) if "PG_Name" in data.columns else len(data)
             out[name] = {"loaded": True, "rows": len(data), "pgs": pgs}
+    # Whether the Refresh button can do anything: only with a live link configured.
+    out["real"]["sync_available"] = is_live_source(get_source())
     return out
+
+
+@app.get("/datasets")
+async def datasets_endpoint():
+    """What's loaded, so the UI can show honest counts next to the toggle."""
+    return _datasets_info()
+
+
+@app.post("/datasets/refresh")
+def refresh_real_data():
+    """
+    Pull the latest form responses, rebuild the real dataset and reload it
+    in memory. (Plain `def`, so FastAPI runs it in a worker thread and the
+    network calls don't block other searches.)
+    """
+    source = get_source()
+    if not is_live_source(source):
+        raise HTTPException(
+            status_code=400,
+            detail="No live responses link configured. Publish the response sheet as CSV and put "
+                   "the link in data/form_responses_url.txt (see README).")
+    if not _refresh_lock.acquire(blocking=False):
+        raise HTTPException(status_code=429, detail="A refresh is already running.")
+    try:
+        wait = REFRESH_MIN_INTERVAL_SECONDS - (time.time() - _last_refresh["at"])
+        if wait > 0:
+            raise HTTPException(status_code=429, detail=f"Just refreshed - try again in {int(wait) + 1}s.")
+        try:
+            result = sync_real_data(source)
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail=f"Couldn't refresh from the form responses: {exc}")
+        _load_real_into_memory()
+        _last_refresh["at"] = time.time()
+        return {"sync": result, "datasets": _datasets_info()}
+    finally:
+        _refresh_lock.release()
 
 
 @app.post("/recommend")

@@ -489,6 +489,21 @@ app.get('/api/datasets', async (req, res) => {
   }
 });
 
+// ── POST /api/datasets/refresh ──
+// Pull the latest Google Form responses into the "real" dataset (can take a
+// while the first time, while new PG locations are geocoded).
+app.post('/api/datasets/refresh', async (req, res) => {
+  try {
+    const mlResponse = await axios.post(`${ML_URL}/datasets/refresh`, {}, { timeout: 120000 });
+    return res.json(mlResponse.data);
+  } catch (err) {
+    console.error('POST /api/datasets/refresh error:', err.message);
+    const status = err.response?.status || 503;
+    const detail = err.response?.data?.detail || 'ML service is not available.';
+    return res.status(status).json({ error: detail });
+  }
+});
+
 // ── Health check ──
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', service: 'express-gateway' });
