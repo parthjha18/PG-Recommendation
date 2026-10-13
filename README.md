@@ -15,6 +15,28 @@ This project provides an intelligent recommendation system that suggests PGs bas
 - ✔ Badge system (Budget Pick, Premium, Best Value)
 - ✔ Fallback system (no empty results)
 - ✔ Export recommendations to CSV
+- ✔ "What if…" counterfactual suggestions (see what preference change would actually improve your results)
+- ✔ Real commute-time ranking to a destination you name (college, office)
+
+---
+
+## 🆕 Recent Additions
+
+**What-if suggestions (explainability).** After every search, the system re-runs
+the real recommendation pipeline with small preference changes — raise the
+budget, drop a sharing restriction, search city-wide, drop one amenity — and
+only shows the ones that would actually change the outcome (more PGs unlocked,
+or a better PG becoming the top pick). Each suggestion has a one-click
+"Try this →" that applies the change and re-searches instantly.
+See [`src/whatif.py`](src/whatif.py).
+
+**Real commute-time ranking.** Enter a destination (e.g. "MSRIT", "Manyata
+Tech Park") and PGs are re-ranked by actual road driving time to it, not
+straight-line distance — blended with the existing preference-match score
+so a slightly-closer PG doesn't outrank a much better overall match.
+Geocoding and routing use free OpenStreetMap services (Nominatim + OSRM),
+with an automatic distance-based fallback if either is unreachable.
+See [`src/commute.py`](src/commute.py).
 
 ---
 
